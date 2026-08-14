@@ -1,0 +1,252 @@
+:root {
+    --cyber-bg: #0a0e17;
+    --cyber-card: #111827;
+    --cyber-green: #00ff66;
+    --cyber-red: #ff0055;
+    --cyber-blue: #00d8ff;
+    --cyber-text: #e2e8f0;
+}
+
+body {
+    background-color: var(--cyber-bg);
+    color: var(--cyber-text);
+    font-family: 'JetBrains Mono', monospace;
+    overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: var(--cyber-bg);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--cyber-green);
+    border-radius: 4px;
+}
+
+/* Navbar */
+.navbar {
+    background-color: rgba(10, 14, 23, 0.95);
+    border-bottom: 1px solid rgba(0, 255, 102, 0.2);
+    backdrop-filter: blur(10px);
+}
+.navbar-brand {
+    color: var(--cyber-green) !important;
+    font-weight: bold;
+    font-size: 1.5rem;
+    text-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
+}
+.nav-link {
+    color: var(--cyber-text) !important;
+    transition: all 0.3s;
+}
+.nav-link:hover, .nav-link.active {
+    color: var(--cyber-green) !important;
+    text-shadow: 0 0 8px var(--cyber-green);
+}
+
+/* Buttons */
+.btn-cyber {
+    background: transparent;
+    color: var(--cyber-green);
+    border: 1px solid var(--cyber-green);
+    box-shadow: 0 0 10px rgba(0, 255, 102, 0.2);
+    transition: all 0.3s;
+}
+.btn-cyber:hover {
+    background: var(--cyber-green);
+    color: #000;
+    box-shadow: 0 0 20px rgba(0, 255, 102, 0.8);
+    font-weight: bold;
+}
+
+/* Cards */
+.cyber-card {
+    background-color: var(--cyber-card);
+    border: 1px solid rgba(0, 255, 102, 0.15);
+    border-radius: 12px;
+    transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.6s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
+}
+.cyber-card:hover {
+    border-color: rgba(0, 255, 102, 0.5);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -8px rgba(0, 255, 102, 0.15);
+}
+
+/* Cyber Security Labs Section - Glowing Hover Effect */
+#labs .cyber-card {
+    transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.7s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s ease;
+}
+#labs .cyber-card:hover {
+    transform: translateY(-6px) scale(1.01);
+    border-color: var(--cyber-green);
+    box-shadow: 0 0 30px rgba(0, 255, 102, 0.4), inset 0 0 15px rgba(0, 255, 102, 0.1);
+}
+
+/* Section Styling */
+section {
+    padding: 80px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.section-title {
+    color: var(--cyber-green);
+    text-shadow: 0 0 10px rgba(0, 255, 102, 0.3);
+    margin-bottom: 40px;
+    text-transform: uppercase;
+}
+
+/* Terminal Display */
+.terminal-box {
+    background: #000;
+    border: 1px solid var(--cyber-green);
+    border-radius: 5px;
+    padding: 20px;
+    color: var(--cyber-green);
+    font-size: 0.9rem;
+    box-shadow: inset 0 0 10px rgba(0, 255, 102, 0.2);
+}
+
+/* Inputs */
+.form-control {
+    background-color: #050811;
+    border: 1px solid rgba(0, 255, 102, 0.3);
+    color: var(--cyber-green);
+}
+.form-control:focus {
+    background-color: #050811;
+    border-color: var(--cyber-green);
+    color: var(--cyber-green);
+    box-shadow: 0 0 10px rgba(0, 255, 102, 0.5);
+}
+
+/* Location Card Inside Scanner */
+.location-box {
+    background: rgba(0, 216, 255, 0.05);
+    border: 1px dashed var(--cyber-blue);
+    border-radius: 5px;
+    padding: 15px;
+    color: var(--cyber-blue);
+}
+
+/* Light Mode Overrides */
+[data-theme="light"] {
+    --cyber-bg: #f4f6f9;
+    --cyber-card: #ffffff;
+    --cyber-green: #008844;
+    --cyber-red: #cc0033;
+    --cyber-blue: #0055cc;
+    --cyber-text: #212529;
+}
+
+[data-theme="light"] body {
+    background-color: var(--cyber-bg);
+}
+
+[data-theme="light"] .navbar {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid rgba(0, 136, 68, 0.2);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+[data-theme="light"] .navbar-brand {
+    text-shadow: none;
+}
+
+[data-theme="light"] .nav-link:hover, [data-theme="light"] .nav-link.active {
+    text-shadow: none;
+}
+
+[data-theme="light"] .cyber-card {
+    border: 1px solid rgba(0, 136, 68, 0.15);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+[data-theme="light"] .cyber-card:hover {
+    box-shadow: 0 8px 15px rgba(0, 136, 68, 0.15);
+}
+
+[data-theme="light"] #labs .cyber-card:hover {
+    box-shadow: 0 0 25px rgba(0, 136, 68, 0.4), inset 0 0 15px rgba(0, 136, 68, 0.1);
+}
+
+[data-theme="light"] section {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .section-title {
+    text-shadow: none;
+}
+
+[data-theme="light"] .terminal-box {
+    background: #e9ecef;
+    border: 1px solid var(--cyber-green);
+    color: var(--cyber-green);
+    box-shadow: none;
+}
+
+[data-theme="light"] .form-control {
+    background-color: #ffffff;
+    border: 1px solid rgba(0, 136, 68, 0.3);
+    color: var(--cyber-text);
+}
+
+[data-theme="light"] .form-control:focus {
+    background-color: #ffffff;
+    color: var(--cyber-text);
+    box-shadow: 0 0 5px rgba(0, 136, 68, 0.3);
+}
+
+[data-theme="light"] .location-box {
+    background: rgba(0, 85, 204, 0.05);
+}
+
+[data-theme="light"] .text-white,
+[data-theme="light"] .text-light {
+    color: #212529 !important;
+}
+
+[data-theme="light"] .text-secondary {
+    color: #495057 !important;
+}
+
+[data-theme="light"] .text-info {
+    color: var(--cyber-blue) !important;
+}
+
+[data-theme="light"] .text-warning {
+    color: #b38000 !important;
+}
+
+[data-theme="light"] .text-success {
+    color: var(--cyber-green) !important;
+}
+
+[data-theme="light"] .text-danger {
+    color: var(--cyber-red) !important;
+}
+
+[data-theme="light"] .border-secondary {
+    border-color: #dee2e6 !important;
+}
+
+[data-theme="light"] .border-info {
+    border-color: var(--cyber-blue) !important;
+}
+
+[data-theme="light"] .border-danger {
+    border-color: var(--cyber-red) !important;
+}
+
+[data-theme="light"] .border-success {
+    border-color: var(--cyber-green) !important;
+}
+
+[data-theme="light"] .bg-dark {
+    background-color: #ffffff !important;
+}
+
+[data-theme="light"] .btn-close-white {
+    filter: invert(1);
+}
