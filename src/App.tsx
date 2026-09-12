@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import MatrixRain from './components/MatrixRain';
+import FirewallMinigame from './components/FirewallMinigame';
 
 const CopyButton = ({ text, copiedText, onCopy }: { text: string, copiedText: string | null, onCopy: (t: string) => void }) => (
   <i 
@@ -57,6 +59,34 @@ const GlitchText = ({ text, className = "" }: { text: string, className?: string
     </span>
   </span>
 );
+
+const BreachModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+  if (!isOpen) return null;
+  
+  return (
+    <div className="breach-overlay">
+      <div className="text-center p-5 cyber-card breach-pulse" style={{ maxWidth: '600px', width: '90%', backgroundColor: '#050000' }}>
+        <i className="fa-solid fa-triangle-exclamation text-danger" style={{ fontSize: '4rem', marginBottom: '1rem' }}></i>
+        <div className="breach-banner p-3 mb-4 rounded">
+          <h2 className="m-0 fw-bold display-6">CRITICAL SECURITY BREACH</h2>
+        </div>
+        <p className="text-light mb-4 fs-5" style={{ textShadow: '0 0 5px rgba(255,255,255,0.5)' }}>
+          UNAUTHORIZED ACCESS DETECTED. SYSTEM LOCKDOWN INITIATED.
+          ALL NETWORK ACTIVITY IS BEING MONITORED AND TRACED.
+        </p>
+        <div className="font-monospace text-danger mb-4" style={{ textAlign: 'left', background: '#110000', padding: '15px', borderRadius: '5px', border: '1px solid var(--cyber-red)' }}>
+          {">"} ERR: ACCESS_DENIED<br/>
+          {">"} FIREWALL_BYPASS_DETECTED<br/>
+          {">"} INITIATING_COUNTER_MEASURES...<br/>
+          {">"} TRACING_ORIGIN_IP... <span className="text-light">[PENDING]</span>
+        </div>
+        <button className="btn btn-outline-danger btn-lg w-100" onClick={onClose} style={{ fontWeight: 'bold', letterSpacing: '1px' }}>
+          [ BYPASS LOCKDOWN ]
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const cheatSheetData = [
   { 
@@ -289,8 +319,9 @@ export default function App() {
   const [showLocation, setShowLocation] = useState(false);
   const [recentScans, setRecentScans] = useState<string[]>([]);
   const [selectedCheat, setSelectedCheat] = useState<{ tool: string; command: string; description: string; use: string; language?: string } | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'cheatsheet' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'cheatsheet' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker' | 'minigame'>('home');
   const [isLightMode, setIsLightMode] = useState(false);
+  const [isBreachModalOpen, setIsBreachModalOpen] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
   const [accountName, setAccountName] = useState('');
@@ -407,6 +438,8 @@ export default function App() {
 
   return (
     <>
+      <MatrixRain />
+      <BreachModal isOpen={isBreachModalOpen} onClose={() => setIsBreachModalOpen(false)} />
       <nav className="navbar navbar-expand-lg fixed-top">
         <div className="container">
           <a className="navbar-brand" href="#home" onClick={(e) => { e.preventDefault(); setCurrentView('home'); window.scrollTo(0,0); }}><i className="fa-solid fa-shield-halved me-2"></i><DecryptedText text="SHADOWGRID" /></a>
@@ -421,6 +454,7 @@ export default function App() {
               <li className="nav-item"><a className={`nav-link ${currentView === 'networkDefense' ? 'active' : ''}`} href="#networkDefense" onClick={(e) => { e.preventDefault(); setCurrentView('networkDefense'); window.scrollTo(0,0); }}>Network Defense</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'cheatsheet' ? 'active' : ''}`} href="#cheatsheet" onClick={(e) => { e.preventDefault(); setCurrentView('cheatsheet'); window.scrollTo(0,0); }}>Cheat-Sheet</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'hashCracker' ? 'active' : ''}`} href="#hashCracker" onClick={(e) => { e.preventDefault(); setCurrentView('hashCracker'); window.scrollTo(0,0); }}>Hash Cracker</a></li>
+              <li className="nav-item"><a className={`nav-link ${currentView === 'minigame' ? 'active' : ''}`} href="#minigame" onClick={(e) => { e.preventDefault(); setCurrentView('minigame'); window.scrollTo(0,0); }}>Bypass Minigame</a></li>
               <li className="nav-item d-flex align-items-center ms-lg-3 me-2">
                 <div className="form-check form-switch mb-0" style={{ cursor: 'pointer' }}>
                   <input className="form-check-input" type="checkbox" id="themeSwitch" checked={isLightMode} onChange={() => setIsLightMode(!isLightMode)} style={{ cursor: 'pointer', backgroundColor: isLightMode ? 'var(--cyber-green)' : 'transparent', borderColor: 'var(--cyber-green)' }} />
@@ -472,7 +506,7 @@ export default function App() {
               </h1>
               <p className="lead text-secondary mb-4">Interactive cyber-defense platform for threat hunting, network scanning, and real-time security analytics.</p>
               <a href="#scanner" className="btn btn-cyber btn-lg me-3" onClick={(e) => { e.preventDefault(); setCurrentView('scanner'); window.scrollTo(0,0); }}><i className="fa-solid fa-terminal me-2"></i>Launch Scanner</a>
-              <a href="#labs" className="btn btn-outline-light btn-lg" onClick={(e) => { e.preventDefault(); setCurrentView('labs'); window.scrollTo(0,0); }}><i className="fa-solid fa-flask me-2"></i>Access Labs</a>
+              <a href="#labs" className="btn btn-outline-light btn-lg me-3" onClick={(e) => { e.preventDefault(); setCurrentView('labs'); window.scrollTo(0,0); }}><i className="fa-solid fa-flask me-2"></i>Access Labs</a>
             </div>
             <div className="col-lg-6 mt-4 mt-lg-0">
               <div className="terminal-box">
@@ -682,6 +716,19 @@ export default function App() {
       )}
 
       {currentView === 'hashCracker' && <HashCrackerSection />}
+
+      {currentView === 'minigame' && (
+        <section id="minigame" className="min-vh-100 pt-5 mt-5">
+          <div className="container">
+            <h2 className="section-title text-center"><i className="fa-solid fa-microchip me-2"></i><DecryptedText text="Firewall Bypass Simulation" /></h2>
+            <div className="row justify-content-center">
+              <div className="col-lg-8">
+                <FirewallMinigame />
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {currentView === 'networkDefense' && (
         <section id="networkDefense" className="min-vh-100 pt-5 mt-5">
