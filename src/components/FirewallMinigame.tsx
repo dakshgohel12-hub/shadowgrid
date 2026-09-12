@@ -8,7 +8,7 @@ const FirewallMinigame = () => {
   const [activeColumn, setActiveColumn] = useState(0);
   const [status, setStatus] = useState<'idle' | 'playing' | 'paused' | 'success' | 'failed'>('idle');
   const [scrollingChars, setScrollingChars] = useState<string[][]>([[], [], [], [], []]);
-  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [difficulty, setDifficulty] = useState<'level1' | 'level2' | 'level3' | 'level4' | 'level5'>('level4');
 
   const initGame = useCallback((autoStart = false) => {
     const newTarget = Array(5).fill(null).map(() => CHARS[Math.floor(Math.random() * CHARS.length)]);
@@ -31,9 +31,12 @@ const FirewallMinigame = () => {
   useEffect(() => {
     if (status !== 'playing') return;
     
-    let speed = 200;
-    if (difficulty === 'easy') speed = 350;
-    if (difficulty === 'hard') speed = 100;
+    let speed = 250; 
+    if (difficulty === 'level1') speed = 400;
+    if (difficulty === 'level2') speed = 350;
+    if (difficulty === 'level3') speed = 300;
+    if (difficulty === 'level4') speed = 250;
+    if (difficulty === 'level5') speed = 200;
     
     const interval = setInterval(() => {
       setScrollingChars(prev => prev.map((colChars, colIndex) => {
@@ -160,10 +163,12 @@ const FirewallMinigame = () => {
 
         <div className="mt-2">
           <p className="text-secondary small mb-2" style={{ letterSpacing: '1px' }}>DIFFICULTY LEVEL</p>
-          <div className="btn-group" role="group">
-            <button type="button" className={`btn btn-sm ${difficulty === 'easy' ? 'btn-success' : 'btn-outline-secondary'}`} style={{ fontWeight: 'bold' }} onClick={() => { setDifficulty('easy'); initGame(true); }}>EASY</button>
-            <button type="button" className={`btn btn-sm ${difficulty === 'medium' ? 'btn-warning' : 'btn-outline-secondary'}`} style={{ fontWeight: 'bold' }} onClick={() => { setDifficulty('medium'); initGame(true); }}>MEDIUM</button>
-            <button type="button" className={`btn btn-sm ${difficulty === 'hard' ? 'btn-danger' : 'btn-outline-secondary'}`} style={{ fontWeight: 'bold' }} onClick={() => { setDifficulty('hard'); initGame(true); }}>HARD</button>
+          <div className="btn-group flex-wrap justify-content-center" role="group">
+            <button type="button" className={`btn btn-sm ${difficulty === 'level1' ? 'btn-primary' : 'btn-outline-secondary'}`} style={{ fontWeight: 'bold' }} onClick={() => { setDifficulty('level1'); initGame(true); }}>BEGINNER</button>
+            <button type="button" className={`btn btn-sm ${difficulty === 'level2' ? 'btn-info' : 'btn-outline-secondary'}`} style={{ fontWeight: 'bold' }} onClick={() => { setDifficulty('level2'); initGame(true); }}>NOVICE</button>
+            <button type="button" className={`btn btn-sm ${difficulty === 'level3' ? 'btn-success' : 'btn-outline-secondary'}`} style={{ fontWeight: 'bold' }} onClick={() => { setDifficulty('level3'); initGame(true); }}>EASY</button>
+            <button type="button" className={`btn btn-sm ${difficulty === 'level4' ? 'btn-warning' : 'btn-outline-secondary'}`} style={{ fontWeight: 'bold' }} onClick={() => { setDifficulty('level4'); initGame(true); }}>MEDIUM</button>
+            <button type="button" className={`btn btn-sm ${difficulty === 'level5' ? 'btn-danger' : 'btn-outline-secondary'}`} style={{ fontWeight: 'bold' }} onClick={() => { setDifficulty('level5'); initGame(true); }}>HARD</button>
           </div>
         </div>
       </div>

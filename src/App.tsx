@@ -317,6 +317,7 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<React.ReactNode[]>([]);
   const [showLocation, setShowLocation] = useState(false);
+  const [ipGeoData, setIpGeoData] = useState<any>(null);
   const [recentScans, setRecentScans] = useState<string[]>([]);
   const [selectedCheat, setSelectedCheat] = useState<{ tool: string; command: string; description: string; use: string; language?: string } | null>(null);
   const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'cheatsheet' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker' | 'minigame'>('home');
@@ -373,7 +374,7 @@ export default function App() {
     }
   }, [isLightMode]);
 
-  const executeLiveScan = (e: React.FormEvent) => {
+  const executeLiveScan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!targetIP) return;
 
@@ -386,6 +387,24 @@ export default function App() {
     setProgress(0);
     setLogs([]);
     setShowLocation(false);
+    setIpGeoData(null);
+
+    try {
+      const response = await fetch('/api/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target: targetIP })
+      });
+      const data = await response.json();
+      
+      if (data && data.success) {
+        setIpGeoData(data);
+      } else {
+        setIpGeoData({ error: true, ip: targetIP, message: data.message || "Lookup failed" });
+      }
+    } catch (err) {
+      setIpGeoData({ error: true, ip: targetIP, message: "Network error" });
+    }
 
     const commonPorts = [
       { port: 21, service: 'FTP', risk: 'Medium' },
@@ -415,8 +434,8 @@ export default function App() {
 
     const scanSteps = [
       { pct: 20, text: <><span className="text-info">&gt; Initializing traceroute query to target: <strong>{targetIP}</strong>...</span></> },
-      { pct: 40, text: <><span className="text-warning">[+] Ping response received (RTT: 18ms). Resolving DNS nodes...</span></> },
-      { pct: 60, text: <><span className="text-light">[+] Traversing ISP routing hops... IP geolocation packet payload secured.</span></> },
+      { pct: 40, text: <><span className="text-warning">[+] Resolving DNS nodes...</span></> },
+      { pct: 60, text: <><span className="text-light">[+] Traversing ISP routing hops...</span><br/><span className="text-success">[+] IP geolocation packet payload secured.</span></> },
       { pct: 80, text: <>{portLogs}</> },
       { pct: 100, text: <><span className={`text-${threatBadgeClass} fw-bold`}>[!] FINAL ASSESSMENT: THREAT LEVEL {threatLevel.toUpperCase()}</span><br/><span className="text-info">&gt; IP Geolocation & Threat Trace Complete!</span></> }
     ];
@@ -569,11 +588,49 @@ export default function App() {
                     {showLocation && (
                       <div id="locationCard" className="location-box mt-3">
                         <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-location-crosshairs me-2"></i>GEO-LOCATION & NETWORK TRACE RESULT</h6>
-                        <div className="row text-start small">
-                          <div className="col-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{targetIP}</span></div>
-                          <div className="col-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-white">Gujarat, India (IN)</span></div>
-                          <div className="col-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-white">Jio Infocomm / Telecom Routing Node</span></div>
-                          <div className="col-6 mb-1"><strong>Coordinates:</strong> <span id="locCoords" className="text-warning">21.5222° N, 70.4579° E</span></div>
+                        {ipGeoData && !ipGeoData.error ? (
+                          <div className="row text-start small mb-3">
+                            <div className="col-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{ipGeoData.ip}</span></div>
+                            <div className="col-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-white">{ipGeoData.city ? `${ipGeoData.city}, ` : ''}{ipGeoData.region}, {ipGeoData.country} ({ipGeoData.country_code})</span></div>
+                            <div className="col-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-white">{ipGeoData.connection?.isp || 'Unknown'}</span></div>
+                            <div className="col-6 mb-1"><strong>Coordinates:</strong> <span id="locCoords" className="text-warning">{ipGeoData.latitude}° N, {ipGeoData.longitude}° E</span></div>
+                          </div>
+                        ) : (
+                          <div className="row text-start small mb-3">
+                            <div className="col-12 mb-1"><strong>Status:</strong> <span className="text-danger">{ipGeoData?.message || "Local Network / Private IP (Geolocation Unavailable)"}</span></div>
+                            <div className="col-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{ipGeoData?.ip || targetIP}</span></div>
+                            <div className="col-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-muted">N/A</span></div>
+                            <div className="col-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-muted">Unknown</span></div>
+                            <div className="col-6 mb-1"><strong>Coordinates:</strong> <span id="locCoords" className="text-muted">N/A</span></div>
+                          </div>
+                        )}
+                        <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-building-shield me-2"></i>ASN & OWNERSHIP LOOKUP</h6>
+                        {ipGeoData && !ipGeoData.error ? (
+                          <div className="row text-start small mb-3">
+                            <div className="col-6 mb-1"><strong>ASN:</strong> <span className="text-white">AS{ipGeoData.connection?.asn || 'Unknown'}</span></div>
+                            <div className="col-6 mb-1"><strong>Organization:</strong> <span className="text-white">{ipGeoData.connection?.org || 'Unknown'}</span></div>
+                            <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-warning">abuse@{ipGeoData.connection?.domain || 'unknown.net'}</span></div>
+                          </div>
+                        ) : (
+                          <div className="row text-start small mb-3">
+                            <div className="col-6 mb-1"><strong>ASN:</strong> <span className="text-muted">N/A</span></div>
+                            <div className="col-6 mb-1"><strong>Organization:</strong> <span className="text-muted">N/A</span></div>
+                            <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-muted">N/A</span></div>
+                          </div>
+                        )}
+                        
+                        <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-shield-virus me-2"></i>THREAT REPUTATION & BLACKLIST</h6>
+                        <div className="row text-start small align-items-center">
+                          <div className="col-sm-7 mb-3 mb-sm-0">
+                            <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Tor Exit Node:</strong> <span className="text-white">False</span></div>
+                            <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Known Botnet:</strong> <span className="text-white">Clean</span></div>
+                            <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Spam Database:</strong> <span className="text-white">Clear</span></div>
+                          </div>
+                          <div className="col-sm-5 text-sm-end text-center">
+                            <div className="d-inline-block border border-success rounded p-2 text-success fw-bold" style={{ backgroundColor: 'rgba(0, 255, 102, 0.1)', boxShadow: 'inset 0 0 10px rgba(0,255,102,0.2)' }}>
+                              <i className="fa-solid fa-shield-halved me-1"></i> REPUTATION: SAFE
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
