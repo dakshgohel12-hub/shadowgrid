@@ -88,37 +88,6 @@ const BreachModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void
   );
 };
 
-const cheatSheetData = [
-  { 
-    tool: 'Nmap', 
-    command: 'nmap -sS -sV -O -p 1-65535 -T4 -A <target_ip>', 
-    language: '{Bash}', 
-    description: 'Stealth SYN scan (-sS), service/version detection (-sV), OS fingerprinting (-O), across all ports (-p 1-65535), with aggressive timing (-T4) and advanced script scanning (-A).', 
-    use: 'Used by attackers during active reconnaissance to completely map out a target network. By identifying the exact OS version and running services (e.g., Apache 2.4.49), hackers can quickly search for matching CVEs (Common Vulnerabilities and Exposures) to exploit.' 
-  },
-  { 
-    tool: 'grep', 
-    command: 'grep -rnaiw "password\\|API_KEY\\|secret" /var/ /etc/ 2>/dev/null', 
-    language: '{Bash}', 
-    description: 'Recursively searches (-r), shows line numbers (-n), ignores case (-i), matches whole words (-w), treats files as text (-a), and suppresses permission errors (2>/dev/null).', 
-    use: 'Used during Post-Exploitation or Privilege Escalation phases. Once attackers gain low-level access to a Linux machine, they parse system logs, web roots, and configuration directories looking for hardcoded database credentials, AWS keys, or plaintext passwords.' 
-  },
-  { 
-    tool: 'Metasploit', 
-    command: 'msfconsole -q -x "use exploit/multi/handler; set PAYLOAD linux/x64/meterpreter/reverse_tcp; set LHOST 0.0.0.0; set LPORT 4444; exploit -j"', 
-    language: '{Bash}', 
-    description: 'Launches MSF silently (-q) and executes a command string (-x) to instantly configure and start a reverse TCP listener as a background job (-j).', 
-    use: 'Used when an attacker expects a callback from a compromised machine (e.g., after dropping a malicious payload). This automated syntax prepares the attack infrastructure instantly to catch the incoming connection and establish a covert Meterpreter session.' 
-  },
-  { 
-    tool: 'Netcat', 
-    command: 'nc -lvnp 4444 -e /bin/bash', 
-    language: '{Bash}', 
-    description: 'Listens (-l) verbosely (-v) on a numeric IP/port (-n) without DNS resolution on port 4444 (-p 4444), and executes a bash shell (-e /bin/bash) upon connection.', 
-    use: 'Considered the hacker\'s "Swiss Army Knife." Attackers use it to create bind shells (opening a secret backdoor port on the victim machine for the attacker to connect to) or to catch incoming reverse shells (bypassing strict inbound firewall rules).' 
-  }
-];
-
 const HashCrackerSection = () => {
   const [password, setPassword] = useState('');
   const [hashes, setHashes] = useState({ md5: '', sha256: '' });
@@ -319,13 +288,13 @@ export default function App() {
   const [showLocation, setShowLocation] = useState(false);
   const [ipGeoData, setIpGeoData] = useState<any>(null);
   const [recentScans, setRecentScans] = useState<string[]>([]);
-  const [selectedCheat, setSelectedCheat] = useState<{ tool: string; command: string; description: string; use: string; language?: string } | null>(null);
-  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'cheatsheet' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker' | 'minigame'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker' | 'minigame'>('home');
   const [isLightMode, setIsLightMode] = useState(false);
   const [isBreachModalOpen, setIsBreachModalOpen] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
   const [accountName, setAccountName] = useState('');
+  const [authSuccessMsg, setAuthSuccessMsg] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState('');
 
@@ -339,10 +308,12 @@ export default function App() {
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     if (accountName.trim()) {
-      localStorage.setItem('shadowgrid_user', accountName);
-      setLoggedInUser(accountName);
-      alert(`Sign In Successful! Welcome back, ${accountName}.`);
+      const sanitizedName = accountName.trim();
+      localStorage.setItem('shadowgrid_user', sanitizedName);
+      setLoggedInUser(sanitizedName);
+      setAuthSuccessMsg(`Operator verified: Welcome back, ${sanitizedName}. Session active.`);
       setAccountName('');
+      setTimeout(() => setAuthSuccessMsg(null), 5000);
     }
   };
 
@@ -358,10 +329,36 @@ export default function App() {
   const handleSignOut = () => {
     localStorage.removeItem('shadowgrid_user');
     setLoggedInUser(null);
+    setAuthSuccessMsg(null);
+  };
+
+  const fallbackCopy = (text: string) => {
+    try {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    } catch {
+      // Silent fail
+    }
   };
 
   const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+    } catch {
+      fallbackCopy(text);
+    }
     setCopiedText(text);
     setTimeout(() => setCopiedText(null), 2000);
   };
@@ -471,7 +468,6 @@ export default function App() {
               <li className="nav-item"><a className={`nav-link ${currentView === 'scanner' ? 'active' : ''}`} href="#scanner" onClick={(e) => { e.preventDefault(); setCurrentView('scanner'); window.scrollTo(0,0); }}>Scanner Tool</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'labs' ? 'active' : ''}`} href="#labs" onClick={(e) => { e.preventDefault(); setCurrentView('labs'); window.scrollTo(0,0); }}>Cyber Labs</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'networkDefense' ? 'active' : ''}`} href="#networkDefense" onClick={(e) => { e.preventDefault(); setCurrentView('networkDefense'); window.scrollTo(0,0); }}>Network Defense</a></li>
-              <li className="nav-item"><a className={`nav-link ${currentView === 'cheatsheet' ? 'active' : ''}`} href="#cheatsheet" onClick={(e) => { e.preventDefault(); setCurrentView('cheatsheet'); window.scrollTo(0,0); }}>Cheat-Sheet</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'hashCracker' ? 'active' : ''}`} href="#hashCracker" onClick={(e) => { e.preventDefault(); setCurrentView('hashCracker'); window.scrollTo(0,0); }}>Hash Cracker</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'minigame' ? 'active' : ''}`} href="#minigame" onClick={(e) => { e.preventDefault(); setCurrentView('minigame'); window.scrollTo(0,0); }}>Bypass Minigame</a></li>
               <li className="nav-item d-flex align-items-center ms-lg-3 me-2">
@@ -544,6 +540,7 @@ export default function App() {
       <section id="scanner">
         <div className="container">
           <h2 className="section-title text-center"><i className="fa-solid fa-radar me-2"></i><DecryptedText text="IP Tracer & Port Scanner Tool" /></h2>
+          
           <div className="row justify-content-center">
             <div className="col-lg-8">
               <div className="cyber-card p-4">
@@ -572,68 +569,98 @@ export default function App() {
                 )}
 
                 {(isScanning || showLocation || logs.length > 0) && (
-                  <div id="scanConsole" className="terminal-box mt-4">
-                    {(isScanning || progress > 0) && (
-                      <div id="scanProgress" className="progress mb-3 bg-dark border border-success" style={{ height: '10px' }}>
-                        <div className="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style={{ width: `${progress}%` }}></div>
+                  <div id="scanConsole" className={`terminal-box mt-4 position-relative overflow-hidden ${isScanning ? 'scan-active' : ''}`}>
+                    <AnimatePresence>
+                      {isScanning && (
+                        <motion.div
+                          key="scanGridOverlay"
+                          className="scan-grid-overlay"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          aria-hidden="true"
+                        >
+                          <div className="scan-grid-pattern"></div>
+                          <div className="scan-grid-beam"></div>
+                          <div className="scan-grid-vignette"></div>
+                          <div className="scan-grid-corner scan-grid-corner-tl"></div>
+                          <div className="scan-grid-corner scan-grid-corner-tr"></div>
+                          <div className="scan-grid-corner scan-grid-corner-bl"></div>
+                          <div className="scan-grid-corner scan-grid-corner-br"></div>
+                          <div className="scan-grid-hud">
+                            <span className="scan-grid-badge">
+                              <i className="fa-solid fa-radar fa-spin me-1" style={{ animationDuration: '4s' }}></i>
+                              GRID SCAN ACTIVE
+                            </span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <div className="position-relative" style={{ zIndex: 3 }}>
+                      {(isScanning || progress > 0) && (
+                        <div id="scanProgress" className="progress mb-3 bg-dark border border-success" style={{ height: '10px' }}>
+                          <div className="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style={{ width: `${progress}%` }}></div>
+                        </div>
+                      )}
+
+                      <div id="terminalLog">
+                        {logs.map((log, i) => (
+                          <div key={i}>{log}</div>
+                        ))}
                       </div>
-                    )}
 
-                    <div id="terminalLog">
-                      {logs.map((log, i) => (
-                        <div key={i}>{log}</div>
-                      ))}
-                    </div>
-
-                    {showLocation && (
-                      <div id="locationCard" className="location-box mt-3">
-                        <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-location-crosshairs me-2"></i>GEO-LOCATION & NETWORK TRACE RESULT</h6>
-                        {ipGeoData && !ipGeoData.error ? (
-                          <div className="row text-start small mb-3">
-                            <div className="col-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{ipGeoData.ip}</span></div>
-                            <div className="col-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-white">{ipGeoData.city ? `${ipGeoData.city}, ` : ''}{ipGeoData.region}, {ipGeoData.country} ({ipGeoData.country_code})</span></div>
-                            <div className="col-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-white">{ipGeoData.connection?.isp || 'Unknown'}</span></div>
-                            <div className="col-6 mb-1"><strong>Coordinates:</strong> <span id="locCoords" className="text-warning">{ipGeoData.latitude}° N, {ipGeoData.longitude}° E</span></div>
-                          </div>
-                        ) : (
-                          <div className="row text-start small mb-3">
-                            <div className="col-12 mb-1"><strong>Status:</strong> <span className="text-danger">{ipGeoData?.message || "Local Network / Private IP (Geolocation Unavailable)"}</span></div>
-                            <div className="col-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{ipGeoData?.ip || targetIP}</span></div>
-                            <div className="col-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-muted">N/A</span></div>
-                            <div className="col-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-muted">Unknown</span></div>
-                            <div className="col-6 mb-1"><strong>Coordinates:</strong> <span id="locCoords" className="text-muted">N/A</span></div>
-                          </div>
-                        )}
-                        <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-building-shield me-2"></i>ASN & OWNERSHIP LOOKUP</h6>
-                        {ipGeoData && !ipGeoData.error ? (
-                          <div className="row text-start small mb-3">
-                            <div className="col-6 mb-1"><strong>ASN:</strong> <span className="text-white">AS{ipGeoData.connection?.asn || 'Unknown'}</span></div>
-                            <div className="col-6 mb-1"><strong>Organization:</strong> <span className="text-white">{ipGeoData.connection?.org || 'Unknown'}</span></div>
-                            <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-warning">abuse@{ipGeoData.connection?.domain || 'unknown.net'}</span></div>
-                          </div>
-                        ) : (
-                          <div className="row text-start small mb-3">
-                            <div className="col-6 mb-1"><strong>ASN:</strong> <span className="text-muted">N/A</span></div>
-                            <div className="col-6 mb-1"><strong>Organization:</strong> <span className="text-muted">N/A</span></div>
-                            <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-muted">N/A</span></div>
-                          </div>
-                        )}
-                        
-                        <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-shield-virus me-2"></i>THREAT REPUTATION & BLACKLIST</h6>
-                        <div className="row text-start small align-items-center">
-                          <div className="col-sm-7 mb-3 mb-sm-0">
-                            <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Tor Exit Node:</strong> <span className="text-white">False</span></div>
-                            <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Known Botnet:</strong> <span className="text-white">Clean</span></div>
-                            <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Spam Database:</strong> <span className="text-white">Clear</span></div>
-                          </div>
-                          <div className="col-sm-5 text-sm-end text-center">
-                            <div className="d-inline-block border border-success rounded p-2 text-success fw-bold" style={{ backgroundColor: 'rgba(0, 255, 102, 0.1)', boxShadow: 'inset 0 0 10px rgba(0,255,102,0.2)' }}>
-                              <i className="fa-solid fa-shield-halved me-1"></i> REPUTATION: SAFE
+                      {showLocation && (
+                        <div id="locationCard" className="location-box mt-3">
+                          <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-location-crosshairs me-2"></i>GEO-LOCATION & NETWORK TRACE RESULT</h6>
+                          {ipGeoData && !ipGeoData.error ? (
+                            <div className="row text-start small mb-3">
+                              <div className="col-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{ipGeoData.ip}</span></div>
+                              <div className="col-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-white">{ipGeoData.city ? `${ipGeoData.city}, ` : ''}{ipGeoData.region}, {ipGeoData.country} ({ipGeoData.country_code})</span></div>
+                              <div className="col-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-white">{ipGeoData.connection?.isp || 'Unknown'}</span></div>
+                              <div className="col-6 mb-1"><strong>Coordinates:</strong> <span id="locCoords" className="text-warning">{ipGeoData.latitude}° N, {ipGeoData.longitude}° E</span></div>
+                            </div>
+                          ) : (
+                            <div className="row text-start small mb-3">
+                              <div className="col-12 mb-1"><strong>Status:</strong> <span className="text-danger">{ipGeoData?.message || "Local Network / Private IP (Geolocation Unavailable)"}</span></div>
+                              <div className="col-6 mb-1"><strong>Target IP:</strong> <span id="locIPFallback" className="text-white">{ipGeoData?.ip || targetIP}</span></div>
+                              <div className="col-6 mb-1"><strong>Location:</strong> <span id="locGeoFallback" className="text-muted">N/A</span></div>
+                              <div className="col-6 mb-1"><strong>ISP / Network:</strong> <span id="locISPFallback" className="text-muted">Unknown</span></div>
+                              <div className="col-6 mb-1"><strong>Coordinates:</strong> <span id="locCoordsFallback" className="text-muted">N/A</span></div>
+                            </div>
+                          )}
+                          <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-building-shield me-2"></i>ASN & OWNERSHIP LOOKUP</h6>
+                          {ipGeoData && !ipGeoData.error ? (
+                            <div className="row text-start small mb-3">
+                              <div className="col-6 mb-1"><strong>ASN:</strong> <span className="text-white">AS{ipGeoData.connection?.asn || 'Unknown'}</span></div>
+                              <div className="col-6 mb-1"><strong>Organization:</strong> <span className="text-white">{ipGeoData.connection?.org || 'Unknown'}</span></div>
+                              <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-warning">abuse@{ipGeoData.connection?.domain || 'unknown.net'}</span></div>
+                            </div>
+                          ) : (
+                            <div className="row text-start small mb-3">
+                              <div className="col-6 mb-1"><strong>ASN:</strong> <span className="text-muted">N/A</span></div>
+                              <div className="col-6 mb-1"><strong>Organization:</strong> <span className="text-muted">N/A</span></div>
+                              <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-muted">N/A</span></div>
+                            </div>
+                          )}
+                          
+                          <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-shield-virus me-2"></i>THREAT REPUTATION & BLACKLIST</h6>
+                          <div className="row text-start small align-items-center">
+                            <div className="col-sm-7 mb-3 mb-sm-0">
+                              <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Tor Exit Node:</strong> <span className="text-white">False</span></div>
+                              <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Known Botnet:</strong> <span className="text-white">Clean</span></div>
+                              <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Spam Database:</strong> <span className="text-white">Clear</span></div>
+                            </div>
+                            <div className="col-sm-5 text-sm-end text-center">
+                              <div className="d-inline-block border border-success rounded p-2 text-success fw-bold" style={{ backgroundColor: 'rgba(0, 255, 102, 0.1)', boxShadow: 'inset 0 0 10px rgba(0,255,102,0.2)' }}>
+                                <i className="fa-solid fa-shield-halved me-1"></i> REPUTATION: SAFE
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -663,48 +690,6 @@ export default function App() {
                 <p className="text-secondary">Master Linux terminal commands, privilege escalation, and system hardening.</p>
                 <a href="#linuxSecurity" className="btn btn-cyber btn-sm" onClick={(e) => { e.preventDefault(); setCurrentView('linuxSecurity'); window.scrollTo(0,0); }}>Start Module</a>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-      )}
-
-      {currentView === 'cheatsheet' && (
-      <section id="cheatsheet" className="min-vh-100 pt-5 mt-5">
-        <div className="container">
-          <h2 className="section-title text-center"><i className="fa-solid fa-code me-2"></i><DecryptedText text="Command Cheat-Sheet" /></h2>
-          <div className="cyber-card p-4">
-            <div className="table-responsive">
-              <table className="table table-dark table-hover mb-0">
-                <thead>
-                  <tr className="text-success">
-                    <th>Tool</th>
-                    <th>Command Syntax</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cheatSheetData.map((cheat, idx) => (
-                    <tr key={idx}>
-                      <td>{cheat.tool}</td>
-                      <td>
-                        <code>{cheat.command}</code> 
-                        <CopyButton text={cheat.command} copiedText={copiedText} onCopy={handleCopy} />
-                        {cheat.language && <span className="text-secondary ms-1">{cheat.language}</span>}
-                      </td>
-                      <td>
-                        {cheat.description}
-                        <i 
-                          className="fa-regular fa-circle-question ms-2 text-info" 
-                          style={{ cursor: 'pointer' }}
-                          title="Click to view details"
-                          onClick={() => setSelectedCheat(cheat)}
-                        ></i>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
@@ -742,6 +727,12 @@ export default function App() {
           <div className="row justify-content-center">
             <div className="col-md-6">
               <div className="cyber-card p-4">
+                {authSuccessMsg && (
+                  <div className="alert alert-success d-flex align-items-center mb-4 py-2 border-success bg-dark text-success" role="alert">
+                    <i className="fa-solid fa-circle-check me-2 fs-5"></i>
+                    <div>{authSuccessMsg}</div>
+                  </div>
+                )}
                 {loggedInUser ? (
                   <div className="text-center">
                     <h4 className="text-success mb-3"><i className="fa-solid fa-circle-check me-2"></i>Access Granted</h4>
@@ -997,7 +988,13 @@ crontab -l
               <div className="col-12">
                 <div className="cyber-card p-4 border-danger" style={{ borderWidth: '2px' }}>
                   <div className="d-flex align-items-center mb-4">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/2/2b/Kali-dragon-icon.svg" alt="Kali Linux Logo" style={{ width: '60px', height: '60px', marginRight: '20px' }} />
+                    <img 
+                      src="https://upload.wikimedia.org/wikipedia/commons/2/2b/Kali-dragon-icon.svg" 
+                      alt="Kali Linux Logo" 
+                      referrerPolicy="no-referrer"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      style={{ width: '60px', height: '60px', marginRight: '20px' }} 
+                    />
                     <h2 className="text-danger mb-0 display-6 fw-bold">Kali Linux: The Hacker's Playground</h2>
                   </div>
                   <p className="text-secondary mb-2"><strong className="text-light">Why is Kali more useful and dangerous than standard Linux?</strong> Kali Linux is a Debian-derived Linux distribution designed specifically for digital forensics and penetration testing. It comes pre-packaged with over 600 preinstalled penetration-testing programs. While standard Linux requires manual installation and configuration of these tools, Kali provides an out-of-the-box, comprehensive arsenal. Its focus on offensive security means it lacks some restrictive defensive defaults, making it incredibly powerful for attackers, but also dangerous if used by novices as a daily driver.</p>
@@ -1284,33 +1281,6 @@ python3 Responder.py -I eth0 -A`}
           </div>
         </div>
       </footer>
-
-      {selectedCheat && (
-        <div className="modal d-block" style={{ backgroundColor: 'rgba(0,0,0,0.8)' }} tabIndex={-1}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content cyber-card" style={{ border: '1px solid var(--cyber-blue)' }}>
-              <div className="modal-header border-bottom border-secondary">
-                <h5 className="modal-title text-info"><i className="fa-solid fa-circle-info me-2"></i>{selectedCheat.tool} Usage</h5>
-                <button type="button" className="btn-close btn-close-white" aria-label="Close" onClick={() => setSelectedCheat(null)}></button>
-              </div>
-              <div className="modal-body text-secondary text-start">
-                <p className="mb-2">
-                  <strong className="text-info">Command:</strong> 
-                  <code>{selectedCheat.command}</code> 
-                  <CopyButton text={selectedCheat.command} copiedText={copiedText} onCopy={handleCopy} />
-                  {selectedCheat.language && <span className="text-secondary ms-1">{selectedCheat.language}</span>}
-                </p>
-                <p className="mb-2"><strong className="text-info">Action:</strong> {selectedCheat.description}</p>
-                <hr className="border-secondary" />
-                <p className="mb-0 text-light"><strong className="text-danger">How Hackers Use It:</strong> {selectedCheat.use}</p>
-              </div>
-              <div className="modal-footer border-top border-secondary">
-                <button type="button" className="btn btn-outline-secondary" onClick={() => setSelectedCheat(null)}>Close</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
