@@ -365,29 +365,7 @@ section {
   backdrop-filter: blur(8px);
 }
 
-/* Firewall Bypass Game Animations */
-@keyframes flash-green {
-  0%, 100% { opacity: 1; text-shadow: 0 0 20px var(--cyber-green); color: var(--cyber-green); }
-  50% { opacity: 0.6; text-shadow: none; color: #fff; }
-}
 
-.flash-green-text {
-  animation: flash-green 0.6s infinite;
-}
-
-@keyframes fail-glitch-anim {
-  0% { transform: translate(0); filter: hue-rotate(0deg); }
-  20% { transform: translate(-3px, 3px); filter: hue-rotate(90deg); }
-  40% { transform: translate(-3px, -3px); filter: hue-rotate(180deg); }
-  60% { transform: translate(3px, 3px); filter: hue-rotate(270deg); }
-  80% { transform: translate(3px, -3px); filter: hue-rotate(360deg); }
-  100% { transform: translate(0); filter: hue-rotate(0deg); }
-}
-
-.fail-glitch {
-  animation: fail-glitch-anim 0.2s infinite;
-  box-shadow: 0 0 20px rgba(255, 0, 85, 0.5);
-}
 
 /* Subtle Scan Console Grid Overlay Animation */
 .terminal-box.scan-active {

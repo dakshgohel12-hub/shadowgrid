@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import MatrixRain from './components/MatrixRain';
-import FirewallMinigame from './components/FirewallMinigame';
+
 
 const CopyButton = ({ text, copiedText, onCopy }: { text: string, copiedText: string | null, onCopy: (t: string) => void }) => (
   <i 
@@ -288,7 +288,7 @@ export default function App() {
   const [showLocation, setShowLocation] = useState(false);
   const [ipGeoData, setIpGeoData] = useState<any>(null);
   const [recentScans, setRecentScans] = useState<string[]>([]);
-  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker' | 'minigame'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker'>('home');
   const [isLightMode, setIsLightMode] = useState(false);
   const [isBreachModalOpen, setIsBreachModalOpen] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
@@ -469,7 +469,6 @@ export default function App() {
               <li className="nav-item"><a className={`nav-link ${currentView === 'labs' ? 'active' : ''}`} href="#labs" onClick={(e) => { e.preventDefault(); setCurrentView('labs'); window.scrollTo(0,0); }}>Cyber Labs</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'networkDefense' ? 'active' : ''}`} href="#networkDefense" onClick={(e) => { e.preventDefault(); setCurrentView('networkDefense'); window.scrollTo(0,0); }}>Network Defense</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'hashCracker' ? 'active' : ''}`} href="#hashCracker" onClick={(e) => { e.preventDefault(); setCurrentView('hashCracker'); window.scrollTo(0,0); }}>Hash Cracker</a></li>
-              <li className="nav-item"><a className={`nav-link ${currentView === 'minigame' ? 'active' : ''}`} href="#minigame" onClick={(e) => { e.preventDefault(); setCurrentView('minigame'); window.scrollTo(0,0); }}>Bypass Minigame</a></li>
               <li className="nav-item d-flex align-items-center ms-lg-3 me-2">
                 <div className="form-check form-switch mb-0" style={{ cursor: 'pointer' }}>
                   <input className="form-check-input" type="checkbox" id="themeSwitch" checked={isLightMode} onChange={() => setIsLightMode(!isLightMode)} style={{ cursor: 'pointer', backgroundColor: isLightMode ? 'var(--cyber-green)' : 'transparent', borderColor: 'var(--cyber-green)' }} />
@@ -764,19 +763,6 @@ export default function App() {
       )}
 
       {currentView === 'hashCracker' && <HashCrackerSection />}
-
-      {currentView === 'minigame' && (
-        <section id="minigame" className="min-vh-100 pt-5 mt-5">
-          <div className="container">
-            <h2 className="section-title text-center"><i className="fa-solid fa-microchip me-2"></i><DecryptedText text="Firewall Bypass Simulation" /></h2>
-            <div className="row justify-content-center">
-              <div className="col-lg-8">
-                <FirewallMinigame />
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
 
       {currentView === 'networkDefense' && (
         <section id="networkDefense" className="min-vh-100 pt-5 mt-5">
