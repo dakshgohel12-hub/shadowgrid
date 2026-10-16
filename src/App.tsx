@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import MatrixRain from './components/MatrixRain';
+import { InteractiveDarkCyberMap } from './components/InteractiveDarkCyberMap';
+import { GoogleCyberMap } from './components/GoogleCyberMap';
+
 
 
 const CopyButton = ({ text, copiedText, onCopy }: { text: string, copiedText: string | null, onCopy: (t: string) => void }) => (
@@ -83,6 +86,166 @@ const BreachModal = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void
         <button className="btn btn-outline-danger btn-lg w-100" onClick={onClose} style={{ fontWeight: 'bold', letterSpacing: '1px' }}>
           [ BYPASS LOCKDOWN ]
         </button>
+      </div>
+    </div>
+  );
+};
+
+const CartoSettingsModal = ({
+  isOpen,
+  onClose,
+  cartoStatus,
+  inputCartoKey,
+  setInputCartoKey,
+  cartoTestStatus,
+  onTestKey,
+  onSaveKey,
+  cartoSaveMsg
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  cartoStatus: { configured: boolean; mode: string; maskedKey?: string; tileEndpoint?: string } | null;
+  inputCartoKey: string;
+  setInputCartoKey: (k: string) => void;
+  cartoTestStatus: { loading: boolean; success?: boolean; message?: string } | null;
+  onTestKey: (k: string) => void;
+  onSaveKey: (e: React.FormEvent) => void;
+  cartoSaveMsg: string | null;
+}) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="breach-overlay" style={{ zIndex: 1050 }}>
+      <div
+        className="cyber-card p-4"
+        style={{
+          maxWidth: '620px',
+          width: '95%',
+          backgroundColor: '#0a0e17',
+          border: '1px solid var(--cyber-green)',
+          boxShadow: '0 0 35px rgba(0, 255, 102, 0.25)'
+        }}
+      >
+        <div className="d-flex justify-content-between align-items-center border-bottom border-success pb-3 mb-3">
+          <div className="d-flex align-items-center gap-2">
+            <i className="fa-solid fa-map-location-dot text-success fa-lg"></i>
+            <h5 className="text-white mb-0 font-monospace">CARTO DARK GIS INTEGRATION</h5>
+          </div>
+          <button
+            type="button"
+            className="btn btn-outline-danger btn-sm py-0 px-2 font-monospace"
+            onClick={onClose}
+          >
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        {/* Current status indicator */}
+        <div className="p-3 mb-3 rounded bg-dark border border-secondary font-monospace">
+          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <span className="text-secondary small">CURRENT TILE STATUS:</span>
+            {cartoStatus?.configured ? (
+              <span className="badge bg-success text-black fw-bold">
+                <i className="fa-solid fa-check-circle me-1"></i>
+                ENTERPRISE KEY ACTIVE
+              </span>
+            ) : (
+              <span className="badge bg-secondary text-white">
+                <i className="fa-solid fa-earth-americas me-1"></i>
+                PUBLIC CARTO CDN MODE
+              </span>
+            )}
+          </div>
+          <div className="small text-secondary">
+            <strong>Active Key:</strong>{' '}
+            <span className="text-white">
+              {cartoStatus?.maskedKey || (cartoStatus?.configured ? 'Configured in Environment' : 'None (Using public tier)')}
+            </span>
+          </div>
+          <div className="small text-secondary">
+            <strong>Tile Layer:</strong>{' '}
+            <span className="text-info font-monospace" style={{ fontSize: '11px' }}>
+              {cartoStatus?.tileEndpoint || '/api/carto/tile/{z}/{x}/{y}.png'}
+            </span>
+          </div>
+        </div>
+
+        {/* Form to enter/update CARTO key */}
+        <form onSubmit={onSaveKey}>
+          <div className="mb-3">
+            <label className="form-label text-secondary small font-monospace">
+              CARTO API Key (from carto.com)
+            </label>
+            <div className="input-group">
+              <span className="input-group-text bg-black border-secondary text-success">
+                <i className="fa-solid fa-key"></i>
+              </span>
+              <input
+                type="text"
+                className="form-control bg-dark text-white border-secondary font-monospace"
+                placeholder="e.g. cb1_4mmz_1_d3ee21b1a7fa..."
+                value={inputCartoKey}
+                onChange={(e) => setInputCartoKey(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn btn-outline-info font-monospace btn-sm"
+                onClick={() => onTestKey(inputCartoKey)}
+                disabled={cartoTestStatus?.loading}
+                title="Test key against CARTO basemap CDN"
+              >
+                {cartoTestStatus?.loading ? (
+                  <><i className="fa-solid fa-spinner fa-spin me-1"></i> Testing...</>
+                ) : (
+                  <><i className="fa-solid fa-vial me-1"></i> Test Key</>
+                )}
+              </button>
+            </div>
+            <div className="form-text text-secondary small font-monospace mt-1">
+              Provides authenticated, high-rate-limit access to CARTO Dark Matter GIS raster tiles.
+            </div>
+          </div>
+
+          {/* Test feedback */}
+          {cartoTestStatus && !cartoTestStatus.loading && (
+            <div
+              className={`p-2 mb-3 rounded small font-monospace border ${
+                cartoTestStatus.success ? 'bg-success bg-opacity-10 border-success text-success' : 'bg-danger bg-opacity-10 border-danger text-danger'
+              }`}
+            >
+              <i className={`fa-solid ${cartoTestStatus.success ? 'fa-check' : 'fa-triangle-exclamation'} me-2`}></i>
+              {cartoTestStatus.message}
+            </div>
+          )}
+
+          {/* Save feedback */}
+          {cartoSaveMsg && (
+            <div className="p-2 mb-3 rounded small font-monospace bg-info bg-opacity-10 border border-info text-info">
+              <i className="fa-solid fa-info-circle me-2"></i>
+              {cartoSaveMsg}
+            </div>
+          )}
+
+          <div className="d-flex justify-content-end gap-2 mt-4">
+            <button
+              type="button"
+              className="btn btn-outline-secondary font-monospace btn-sm"
+              onClick={() => {
+                setInputCartoKey('');
+                onSaveKey({ preventDefault: () => {} } as any);
+              }}
+            >
+              Reset to Public CDN
+            </button>
+            <button
+              type="submit"
+              className="btn btn-cyber font-monospace btn-sm px-3"
+            >
+              <i className="fa-solid fa-floppy-disk me-1"></i>
+              Save & Apply Key
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -297,12 +460,94 @@ export default function App() {
   const [authSuccessMsg, setAuthSuccessMsg] = useState<string | null>(null);
   const [isEditingName, setIsEditingName] = useState(false);
   const [newName, setNewName] = useState('');
+  const [operatorGeo, setOperatorGeo] = useState<any>(null);
+  const [isLoadingOperator, setIsLoadingOperator] = useState(false);
+  const [showOperatorMap, setShowOperatorMap] = useState(false);
+  const [mapDisplayMode, setMapDisplayMode] = useState<'map' | 'split' | 'data'>('map');
+  const [mapEngine, setMapEngine] = useState<'google' | 'cyber'>('google');
+
+  // CARTO Dark Matter GIS state
+  const [cartoStatus, setCartoStatus] = useState<{ configured: boolean; mode: string; maskedKey?: string; tileEndpoint?: string } | null>(null);
+  const [isCartoModalOpen, setIsCartoModalOpen] = useState(false);
+  const [inputCartoKey, setInputCartoKey] = useState('');
+  const [cartoTestStatus, setCartoTestStatus] = useState<{ loading: boolean; success?: boolean; message?: string } | null>(null);
+  const [cartoSaveMsg, setCartoSaveMsg] = useState<string | null>(null);
+
+  const fetchCartoStatus = async () => {
+    try {
+      const res = await fetch('/api/carto/status');
+      const data = await res.json();
+      setCartoStatus(data);
+    } catch {
+      // Ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchCartoStatus();
+  }, []);
+
+  const handleTestCartoKey = async (keyToTest: string) => {
+    setCartoTestStatus({ loading: true });
+    try {
+      const queryParam = keyToTest.trim() ? `?key=${encodeURIComponent(keyToTest.trim())}` : '';
+      const res = await fetch(`/api/carto/test${queryParam}`);
+      const data = await res.json();
+      setCartoTestStatus({
+        loading: false,
+        success: data.success,
+        message: data.message || (data.success ? 'CARTO key verified!' : 'Key validation failed.')
+      });
+    } catch {
+      setCartoTestStatus({
+        loading: false,
+        success: false,
+        message: 'Network error connecting to CARTO test API'
+      });
+    }
+  };
+
+  const handleSaveCartoKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('/api/carto/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: inputCartoKey.trim() })
+      });
+      const data = await res.json();
+      await fetchCartoStatus();
+      setCartoSaveMsg(data.message || 'CARTO configuration updated.');
+      setTimeout(() => setCartoSaveMsg(null), 4000);
+    } catch {
+      setCartoSaveMsg('Failed to update CARTO configuration.');
+      setTimeout(() => setCartoSaveMsg(null), 4000);
+    }
+  };
 
   useEffect(() => {
     const storedUser = localStorage.getItem('shadowgrid_user');
     if (storedUser) {
       setLoggedInUser(storedUser);
     }
+  }, []);
+
+  useEffect(() => {
+    const fetchOperatorIP = async () => {
+      setIsLoadingOperator(true);
+      try {
+        const res = await fetch('/api/my-ip');
+        const data = await res.json();
+        if (data && data.success) {
+          setOperatorGeo(data);
+        }
+      } catch (err) {
+        console.error('Operator IP resolution failed:', err);
+      } finally {
+        setIsLoadingOperator(false);
+      }
+    };
+    fetchOperatorIP();
   }, []);
 
   const handleSignIn = (e: React.FormEvent) => {
@@ -371,13 +616,14 @@ export default function App() {
     }
   }, [isLightMode]);
 
-  const executeLiveScan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!targetIP) return;
+  const performScan = async (targetToScan: string) => {
+    const cleanTarget = targetToScan.trim();
+    if (!cleanTarget) return;
 
+    setTargetIP(cleanTarget);
     setRecentScans(prev => {
-      const newScans = prev.filter(ip => ip !== targetIP);
-      return [targetIP, ...newScans].slice(0, 5);
+      const newScans = prev.filter(ip => ip !== cleanTarget);
+      return [cleanTarget, ...newScans].slice(0, 5);
     });
 
     setIsScanning(true);
@@ -390,17 +636,17 @@ export default function App() {
       const response = await fetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ target: targetIP })
+        body: JSON.stringify({ target: cleanTarget })
       });
       const data = await response.json();
       
       if (data && data.success) {
         setIpGeoData(data);
       } else {
-        setIpGeoData({ error: true, ip: targetIP, message: data.message || "Lookup failed" });
+        setIpGeoData({ error: true, ip: cleanTarget, message: data.message || "Lookup failed" });
       }
-    } catch (err) {
-      setIpGeoData({ error: true, ip: targetIP, message: "Network error" });
+    } catch {
+      setIpGeoData({ error: true, ip: cleanTarget, message: "Network error" });
     }
 
     const commonPorts = [
@@ -430,11 +676,11 @@ export default function App() {
     ));
 
     const scanSteps = [
-      { pct: 20, text: <><span className="text-info">&gt; Initializing traceroute query to target: <strong>{targetIP}</strong>...</span></> },
-      { pct: 40, text: <><span className="text-warning">[+] Resolving DNS nodes...</span></> },
-      { pct: 60, text: <><span className="text-light">[+] Traversing ISP routing hops...</span><br/><span className="text-success">[+] IP geolocation packet payload secured.</span></> },
+      { pct: 20, text: <><span className="text-info">&gt; Initializing traceroute query to target: <strong>{cleanTarget}</strong>...</span></> },
+      { pct: 40, text: <><span className="text-warning">[+] Resolving DNS nodes & geospatial grid coordinates...</span></> },
+      { pct: 60, text: <><span className="text-light">[+] Traversing ISP routing hops & BGP autonomous tables...</span><br/><span className="text-success">[+] IP geolocation packet payload secured.</span></> },
       { pct: 80, text: <>{portLogs}</> },
-      { pct: 100, text: <><span className={`text-${threatBadgeClass} fw-bold`}>[!] FINAL ASSESSMENT: THREAT LEVEL {threatLevel.toUpperCase()}</span><br/><span className="text-info">&gt; IP Geolocation & Threat Trace Complete!</span></> }
+      { pct: 100, text: <><span className={`text-${threatBadgeClass} fw-bold`}>[!] FINAL ASSESSMENT: THREAT LEVEL {threatLevel.toUpperCase()}</span><br/><span className="text-info">&gt; Interactive Dark Cyber Map & Threat Trace Complete!</span></> }
     ];
 
     let stepIndex = 0;
@@ -449,13 +695,29 @@ export default function App() {
         setIsScanning(false);
         setShowLocation(true);
       }
-    }, 700);
+    }, 600);
+  };
+
+  const executeLiveScan = (e: React.FormEvent) => {
+    e.preventDefault();
+    performScan(targetIP);
   };
 
   return (
     <>
       <MatrixRain />
       <BreachModal isOpen={isBreachModalOpen} onClose={() => setIsBreachModalOpen(false)} />
+      <CartoSettingsModal
+        isOpen={isCartoModalOpen}
+        onClose={() => setIsCartoModalOpen(false)}
+        cartoStatus={cartoStatus}
+        inputCartoKey={inputCartoKey}
+        setInputCartoKey={setInputCartoKey}
+        cartoTestStatus={cartoTestStatus}
+        onTestKey={handleTestCartoKey}
+        onSaveKey={handleSaveCartoKey}
+        cartoSaveMsg={cartoSaveMsg}
+      />
       <nav className="navbar navbar-expand-lg fixed-top">
         <div className="container">
           <a className="navbar-brand" href="#home" onClick={(e) => { e.preventDefault(); setCurrentView('home'); window.scrollTo(0,0); }}><i className="fa-solid fa-shield-halved me-2"></i><DecryptedText text="SHADOWGRID" /></a>
@@ -538,11 +800,52 @@ export default function App() {
       {currentView === 'scanner' && (
       <section id="scanner">
         <div className="container">
-          <h2 className="section-title text-center"><i className="fa-solid fa-radar me-2"></i><DecryptedText text="IP Tracer & Port Scanner Tool" /></h2>
+          <h2 className="section-title text-center"><i className="fa-solid fa-crosshairs me-2"></i><DecryptedText text="IP Tracer & Port Scanner Tool" /></h2>
           
           <div className="row justify-content-center">
             <div className="col-lg-8">
               <div className="cyber-card p-4">
+                {/* Operator Current IP Telemetry Banner */}
+                <div className="operator-telemetry-box p-3 mb-4 rounded">
+                  <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                      <span className="operator-pulse-dot" title="Active Connection"></span>
+                      <span className="text-secondary small font-monospace">OPERATOR IP:</span>
+                      <span className="text-white font-monospace fw-bold">
+                        {operatorGeo?.ip || (isLoadingOperator ? 'Detecting node...' : '127.0.0.1')}
+                      </span>
+                      {operatorGeo?.city && (
+                        <span className="badge bg-dark border border-info text-info font-monospace ms-1">
+                          <i className="fa-solid fa-location-crosshairs me-1"></i>
+                          {operatorGeo.city}, {operatorGeo.country_code}
+                        </span>
+                      )}
+                      {operatorGeo?.connection?.isp && (
+                        <span className="text-secondary small font-monospace d-none d-md-inline">
+                          ({operatorGeo.connection.isp})
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="d-flex align-items-center gap-2">
+                      <button
+                        type="button"
+                        className="btn btn-cyber btn-sm font-monospace py-1 px-2"
+                        onClick={() => {
+                          if (operatorGeo?.ip) {
+                            performScan(operatorGeo.ip);
+                          }
+                        }}
+                        disabled={isScanning || isLoadingOperator}
+                        title="Trace your public IP on the interactive map"
+                      >
+                        <i className="fa-solid fa-crosshairs me-1"></i>
+                        Trace My Location
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <form id="scanForm" onSubmit={executeLiveScan}>
                   <div className="mb-3">
                     <label htmlFor="targetIP" className="form-label">Target IP Address / Domain Name</label>
@@ -567,8 +870,9 @@ export default function App() {
                   </div>
                 )}
 
-                {(isScanning || showLocation || logs.length > 0) && (
-                  <div id="scanConsole" className={`terminal-box mt-4 position-relative overflow-hidden ${isScanning ? 'scan-active' : ''}`}>
+                {/* Scan Progress & Terminal Console (shown during active scan or when logs exist) */}
+                {(isScanning || logs.length > 0) && (
+                  <div id="scanConsole" className={`terminal-box mb-4 position-relative overflow-hidden ${isScanning ? 'scan-active' : ''}`}>
                     <AnimatePresence>
                       {isScanning && (
                         <motion.div
@@ -587,19 +891,28 @@ export default function App() {
                           <div className="scan-grid-corner scan-grid-corner-tr"></div>
                           <div className="scan-grid-corner scan-grid-corner-bl"></div>
                           <div className="scan-grid-corner scan-grid-corner-br"></div>
-                          <div className="scan-grid-hud">
-                            <span className="scan-grid-badge">
-                              <i className="fa-solid fa-radar fa-spin me-1" style={{ animationDuration: '4s' }}></i>
-                              GRID SCAN ACTIVE
-                            </span>
-                          </div>
                         </motion.div>
                       )}
                     </AnimatePresence>
 
                     <div className="position-relative" style={{ zIndex: 3 }}>
                       {(isScanning || progress > 0) && (
-                        <div id="scanProgress" className="progress mb-3 bg-dark border border-success" style={{ height: '10px' }}>
+                        <div className="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                          <span className="text-secondary small font-monospace">
+                            <i className="fa-solid fa-terminal me-1 text-success"></i>
+                            STATUS: {isScanning ? 'TRACING_ROUTE' : 'SCAN_COMPLETE'} [{progress}%]
+                          </span>
+                          {isScanning && (
+                            <span className="scan-grid-badge">
+                              <i className="fa-solid fa-satellite-dish fa-spin me-1" style={{ animationDuration: '3s' }}></i>
+                              GRID SCAN ACTIVE
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {(isScanning || progress > 0) && (
+                        <div id="scanProgress" className="progress mb-3 bg-dark border border-success" style={{ height: '8px' }}>
                           <div className="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style={{ width: `${progress}%` }}></div>
                         </div>
                       )}
@@ -609,65 +922,179 @@ export default function App() {
                           <div key={i}>{log}</div>
                         ))}
                       </div>
+                    </div>
+                  </div>
+                )}
 
-                      {showLocation && (
-                        <div id="locationCard" className="location-box mt-3">
-                          <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-location-crosshairs me-2"></i>GEO-LOCATION & NETWORK TRACE RESULT</h6>
-                          {ipGeoData && !ipGeoData.error ? (
-                            <div className="row text-start small mb-3">
-                              <div className="col-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{ipGeoData.ip}</span></div>
-                              <div className="col-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-white">{ipGeoData.city ? `${ipGeoData.city}, ` : ''}{ipGeoData.region}, {ipGeoData.country} ({ipGeoData.country_code})</span></div>
-                              <div className="col-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-white">{ipGeoData.connection?.isp || 'Unknown'}</span></div>
-                              <div className="col-6 mb-1"><strong>Coordinates:</strong> <span id="locCoords" className="text-warning">{ipGeoData.latitude}° N, {ipGeoData.longitude}° E</span></div>
-                            </div>
-                          ) : (
-                            <div className="row text-start small mb-3">
-                              <div className="col-12 mb-1"><strong>Status:</strong> <span className="text-danger">{ipGeoData?.message || "Local Network / Private IP (Geolocation Unavailable)"}</span></div>
-                              <div className="col-6 mb-1"><strong>Target IP:</strong> <span id="locIPFallback" className="text-white">{ipGeoData?.ip || targetIP}</span></div>
-                              <div className="col-6 mb-1"><strong>Location:</strong> <span id="locGeoFallback" className="text-muted">N/A</span></div>
-                              <div className="col-6 mb-1"><strong>ISP / Network:</strong> <span id="locISPFallback" className="text-muted">Unknown</span></div>
-                              <div className="col-6 mb-1"><strong>Coordinates:</strong> <span id="locCoordsFallback" className="text-muted">N/A</span></div>
-                            </div>
-                          )}
-                          <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-building-shield me-2"></i>ASN & OWNERSHIP LOOKUP</h6>
-                          {ipGeoData && !ipGeoData.error ? (
-                            <div className="row text-start small mb-3">
-                              <div className="col-6 mb-1"><strong>ASN:</strong> <span className="text-white">AS{ipGeoData.connection?.asn || 'Unknown'}</span></div>
-                              <div className="col-6 mb-1"><strong>Organization:</strong> <span className="text-white">{ipGeoData.connection?.org || 'Unknown'}</span></div>
-                              <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-warning">abuse@{ipGeoData.connection?.domain || 'unknown.net'}</span></div>
-                            </div>
-                          ) : (
-                            <div className="row text-start small mb-3">
-                              <div className="col-6 mb-1"><strong>ASN:</strong> <span className="text-muted">N/A</span></div>
-                              <div className="col-6 mb-1"><strong>Organization:</strong> <span className="text-muted">N/A</span></div>
-                              <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-muted">N/A</span></div>
-                            </div>
+                {/* Always-Visible Interactive Map (Google Maps / Dark Cyber Grid) */}
+                <div id="locationCard" className="location-box">
+                  <div className="d-flex justify-content-between align-items-center border-bottom border-info pb-2 mb-3 flex-wrap gap-2">
+                    <div className="d-flex align-items-center gap-2">
+                      <h6 className="text-info mb-0 font-monospace">
+                        <i className="fa-solid fa-location-crosshairs me-2"></i>
+                        GEO-LOCATION & INTERACTIVE RADAR TRACE
+                      </h6>
+                    </div>
+                    <div className="d-flex align-items-center gap-2 flex-wrap">
+                      {/* Map Engine Toggle */}
+                      <div className="btn-group btn-group-sm font-monospace" role="group" aria-label="Map Engine">
+                        <button
+                          type="button"
+                          className={`btn ${mapEngine === 'google' ? 'btn-success text-black fw-bold' : 'btn-dark text-success border-secondary'}`}
+                          onClick={() => setMapEngine('google')}
+                          title="Google Maps Platform Engine"
+                        >
+                          <i className="fa-brands fa-google me-1"></i>
+                          Google Maps
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn ${mapEngine === 'cyber' ? 'btn-success text-black fw-bold' : 'btn-dark text-secondary border-secondary'}`}
+                          onClick={() => setMapEngine('cyber')}
+                          title="Dark Cyber Grid Map"
+                        >
+                          <i className="fa-solid fa-satellite-dish me-1"></i>
+                          Cyber Grid
+                        </button>
+                      </div>
+
+                      {/* Display Mode Toggle */}
+                      <div className="btn-group btn-group-sm font-monospace" role="group" aria-label="Display Mode">
+                        <button
+                          type="button"
+                          className={`btn ${mapDisplayMode === 'map' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
+                          onClick={() => setMapDisplayMode('map')}
+                        >
+                          <i className="fa-solid fa-map-location-dot me-1"></i>
+                          Map
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn ${mapDisplayMode === 'split' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
+                          onClick={() => setMapDisplayMode('split')}
+                        >
+                          <i className="fa-solid fa-table-columns me-1"></i>
+                          Split
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn ${mapDisplayMode === 'data' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
+                          onClick={() => setMapDisplayMode('data')}
+                        >
+                          <i className="fa-solid fa-list-check me-1"></i>
+                          Data
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Map Viewport Render: Google Maps Platform or Dark Cyber Grid */}
+                  {mapDisplayMode !== 'data' && (
+                    <div className="mb-3">
+                      {mapEngine === 'google' ? (
+                        <GoogleCyberMap
+                          latitude={ipGeoData && !ipGeoData.error ? ipGeoData.latitude : (operatorGeo?.latitude || 20)}
+                          longitude={ipGeoData && !ipGeoData.error ? ipGeoData.longitude : (operatorGeo?.longitude || 0)}
+                          ip={ipGeoData?.ip || targetIP || operatorGeo?.ip || "127.0.0.1"}
+                          target={targetIP || "Global Cyber Grid"}
+                          city={ipGeoData?.city || operatorGeo?.city || (ipGeoData?.error ? 'Unknown Host' : 'Cyberspace Node')}
+                          region={ipGeoData?.region || operatorGeo?.region}
+                          country={ipGeoData?.country || operatorGeo?.country || 'Global'}
+                          countryCode={ipGeoData?.country_code || operatorGeo?.country_code || 'XX'}
+                          isp={ipGeoData?.connection?.isp || operatorGeo?.connection?.isp || 'Network Provider'}
+                          asn={ipGeoData?.connection?.asn || operatorGeo?.connection?.asn}
+                          title={ipGeoData?.ip ? `RADAR LOCK: ${ipGeoData.ip}` : (operatorGeo?.ip ? `OPERATOR NODE: ${operatorGeo.ip}` : 'GOOGLE MAPS GEOSPATIAL RADAR // ONLINE')}
+                        />
+                      ) : (
+                        <InteractiveDarkCyberMap
+                          latitude={ipGeoData && !ipGeoData.error ? ipGeoData.latitude : (operatorGeo?.latitude || 20)}
+                          longitude={ipGeoData && !ipGeoData.error ? ipGeoData.longitude : (operatorGeo?.longitude || 0)}
+                          ip={ipGeoData?.ip || targetIP || operatorGeo?.ip || "127.0.0.1"}
+                          target={targetIP || "Global Cyber Grid"}
+                          city={ipGeoData?.city || operatorGeo?.city || (ipGeoData?.error ? 'Unknown Host' : 'Cyberspace Node')}
+                          region={ipGeoData?.region || operatorGeo?.region}
+                          country={ipGeoData?.country || operatorGeo?.country || 'Global'}
+                          countryCode={ipGeoData?.country_code || operatorGeo?.country_code || 'XX'}
+                          isp={ipGeoData?.connection?.isp || operatorGeo?.connection?.isp || 'Network Provider'}
+                          asn={ipGeoData?.connection?.asn || operatorGeo?.connection?.asn}
+                          title={ipGeoData?.ip ? `RADAR LOCK: ${ipGeoData.ip}` : (operatorGeo?.ip ? `OPERATOR NODE: ${operatorGeo.ip}` : 'GLOBAL CYBER RADAR // ONLINE')}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                          {/* Detailed Data Views */}
+                          {(mapDisplayMode === 'split' || mapDisplayMode === 'data') && (
+                            <>
+                              <h6 className="text-info border-bottom border-info pb-1 mb-2">
+                                <i className="fa-solid fa-server me-2"></i>TARGET METADATA & TELEMETRY
+                              </h6>
+                              {ipGeoData && !ipGeoData.error ? (
+                                <div className="row text-start small mb-3 g-2">
+                                  <div className="col-12 col-md-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{ipGeoData.ip}</span></div>
+                                  <div className="col-12 col-md-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-white">{ipGeoData.city ? `${ipGeoData.city}, ` : ''}{ipGeoData.region}, {ipGeoData.country} ({ipGeoData.country_code})</span></div>
+                                  <div className="col-12 col-md-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-white">{ipGeoData.connection?.isp || 'Unknown'}</span></div>
+                                  <div className="col-12 col-md-6 mb-1">
+                                    <strong>Coordinates:</strong>{' '}
+                                    <span id="locCoords" className="text-warning">
+                                      {Math.abs(ipGeoData.latitude).toFixed(4)}° {ipGeoData.latitude >= 0 ? 'N' : 'S'},{' '}
+                                      {Math.abs(ipGeoData.longitude).toFixed(4)}° {ipGeoData.longitude >= 0 ? 'E' : 'W'}
+                                    </span>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="row text-start small mb-3 g-2">
+                                  <div className="col-12 mb-1"><strong>Status:</strong> <span className="text-danger">{ipGeoData?.message || "Local Network / Private IP (Geolocation Unavailable)"}</span></div>
+                                  <div className="col-12 col-md-6 mb-1"><strong>Target IP:</strong> <span id="locIPFallback" className="text-white">{ipGeoData?.ip || targetIP}</span></div>
+                                  <div className="col-12 col-md-6 mb-1"><strong>Location:</strong> <span id="locGeoFallback" className="text-muted">N/A</span></div>
+                                  <div className="col-12 col-md-6 mb-1"><strong>ISP / Network:</strong> <span id="locISPFallback" className="text-muted">Unknown</span></div>
+                                  <div className="col-12 col-md-6 mb-1"><strong>Coordinates:</strong> <span id="locCoordsFallback" className="text-muted">N/A</span></div>
+                                </div>
+                              )}
+                              <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-building-shield me-2"></i>ASN & OWNERSHIP LOOKUP</h6>
+                              {ipGeoData && !ipGeoData.error ? (
+                                <div className="row text-start small mb-3 g-2">
+                                  <div className="col-12 col-md-6 mb-1">
+                                    <strong>ASN:</strong>{' '}
+                                    <span className="text-white">
+                                      {ipGeoData.connection?.asn && ipGeoData.connection.asn !== 'Unknown'
+                                        ? `AS${ipGeoData.connection.asn}`
+                                        : 'Unknown'}
+                                    </span>
+                                  </div>
+                                  <div className="col-12 col-md-6 mb-1"><strong>Organization:</strong> <span className="text-white">{ipGeoData.connection?.org || 'Unknown'}</span></div>
+                                  <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-warning">abuse@{ipGeoData.connection?.domain || 'unknown.net'}</span></div>
+                                </div>
+                              ) : (
+                                <div className="row text-start small mb-3 g-2">
+                                  <div className="col-12 col-md-6 mb-1"><strong>ASN:</strong> <span className="text-muted">N/A</span></div>
+                                  <div className="col-12 col-md-6 mb-1"><strong>Organization:</strong> <span className="text-muted">N/A</span></div>
+                                  <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-muted">N/A</span></div>
+                                </div>
+                              )}
+                            </>
                           )}
                           
                           <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-shield-virus me-2"></i>THREAT REPUTATION & BLACKLIST</h6>
-                          <div className="row text-start small align-items-center">
-                            <div className="col-sm-7 mb-3 mb-sm-0">
+                          <div className="row text-start small align-items-center g-2">
+                            <div className="col-12 col-md-7 mb-3 mb-md-0">
                               <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Tor Exit Node:</strong> <span className="text-white">False</span></div>
                               <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Known Botnet:</strong> <span className="text-white">Clean</span></div>
                               <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Spam Database:</strong> <span className="text-white">Clear</span></div>
                             </div>
-                            <div className="col-sm-5 text-sm-end text-center">
+                            <div className="col-12 col-md-5 text-md-end text-start">
                               <div className="d-inline-block border border-success rounded p-2 text-success fw-bold" style={{ backgroundColor: 'rgba(0, 255, 102, 0.1)', boxShadow: 'inset 0 0 10px rgba(0,255,102,0.2)' }}>
                                 <i className="fa-solid fa-shield-halved me-1"></i> REPUTATION: SAFE
                               </div>
                             </div>
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-      )}
+                </div>
+              </section>
+              )}
 
       {currentView === 'labs' && (
       <section id="labs" className="min-vh-100 pt-5 mt-5">
