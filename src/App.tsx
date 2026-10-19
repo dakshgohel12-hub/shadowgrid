@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import MatrixRain from './components/MatrixRain';
-import { InteractiveDarkCyberMap } from './components/InteractiveDarkCyberMap';
 import { GoogleCyberMap } from './components/GoogleCyberMap';
+import { ToolDetailSection, ToolKey } from './components/ToolDetailSection';
 
 
 
@@ -451,7 +451,8 @@ export default function App() {
   const [showLocation, setShowLocation] = useState(false);
   const [ipGeoData, setIpGeoData] = useState<any>(null);
   const [recentScans, setRecentScans] = useState<string[]>([]);
-  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'scanner' | 'labs' | 'signin' | 'ethicalHacking' | 'linuxSecurity' | 'networkDefense' | 'hashCracker' | 'toolDetail'>('home');
+  const [selectedToolKey, setSelectedToolKey] = useState<ToolKey>('sqlmap');
   const [isLightMode, setIsLightMode] = useState(false);
   const [isBreachModalOpen, setIsBreachModalOpen] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
@@ -464,7 +465,38 @@ export default function App() {
   const [isLoadingOperator, setIsLoadingOperator] = useState(false);
   const [showOperatorMap, setShowOperatorMap] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'map' | 'split' | 'data'>('map');
-  const [mapEngine, setMapEngine] = useState<'google' | 'cyber'>('google');
+  const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
+
+  const openToolDetailPage = (toolKey: ToolKey) => {
+    setSelectedToolKey(toolKey);
+    setCurrentView('toolDetail');
+    window.location.hash = `tool-${toolKey}`;
+    window.scrollTo(0, 0);
+  };
+
+  const toggleToolReadMore = (toolKey: string) => {
+    openToolDetailPage(toolKey as ToolKey);
+  };
+
+  useEffect(() => {
+    const handleHashSync = () => {
+      const hash = window.location.hash.replace(/^#/, '');
+      if (hash.startsWith('tool-')) {
+        const key = hash.replace('tool-', '') as ToolKey;
+        if (['sqlmap', 'scapy', 'impacket', 'dirsearch', 'wfuzz', 'responder'].includes(key)) {
+          setSelectedToolKey(key);
+          setCurrentView('toolDetail');
+          return;
+        }
+      }
+      if (hash && ['home', 'scanner', 'labs', 'ethicalHacking', 'linuxSecurity', 'networkDefense', 'hashCracker', 'signin', 'toolDetail'].includes(hash)) {
+        setCurrentView(hash as any);
+      }
+    };
+    handleHashSync();
+    window.addEventListener('hashchange', handleHashSync);
+    return () => window.removeEventListener('hashchange', handleHashSync);
+  }, []);
 
   // CARTO Dark Matter GIS state
   const [cartoStatus, setCartoStatus] = useState<{ configured: boolean; mode: string; maskedKey?: string; tileEndpoint?: string } | null>(null);
@@ -728,7 +760,7 @@ export default function App() {
             <ul className="navbar-nav ms-auto">
               <li className="nav-item"><a className={`nav-link ${currentView === 'home' ? 'active' : ''}`} href="#home" onClick={(e) => { e.preventDefault(); setCurrentView('home'); window.scrollTo(0,0); }}>Home</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'scanner' ? 'active' : ''}`} href="#scanner" onClick={(e) => { e.preventDefault(); setCurrentView('scanner'); window.scrollTo(0,0); }}>Scanner Tool</a></li>
-              <li className="nav-item"><a className={`nav-link ${currentView === 'labs' ? 'active' : ''}`} href="#labs" onClick={(e) => { e.preventDefault(); setCurrentView('labs'); window.scrollTo(0,0); }}>Cyber Labs</a></li>
+              <li className="nav-item"><a className={`nav-link ${currentView === 'labs' || currentView === 'ethicalHacking' || currentView === 'linuxSecurity' || currentView === 'toolDetail' ? 'active' : ''}`} href="#labs" onClick={(e) => { e.preventDefault(); setCurrentView('labs'); window.scrollTo(0,0); }}>Cyber Labs</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'networkDefense' ? 'active' : ''}`} href="#networkDefense" onClick={(e) => { e.preventDefault(); setCurrentView('networkDefense'); window.scrollTo(0,0); }}>Network Defense</a></li>
               <li className="nav-item"><a className={`nav-link ${currentView === 'hashCracker' ? 'active' : ''}`} href="#hashCracker" onClick={(e) => { e.preventDefault(); setCurrentView('hashCracker'); window.scrollTo(0,0); }}>Hash Cracker</a></li>
               <li className="nav-item d-flex align-items-center ms-lg-3 me-2">
@@ -926,7 +958,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Always-Visible Interactive Map (Google Maps / Dark Cyber Grid) */}
+                {/* Always-Visible Interactive Map (Google Maps Platform) */}
                 <div id="locationCard" className="location-box">
                   <div className="d-flex justify-content-between align-items-center border-bottom border-info pb-2 mb-3 flex-wrap gap-2">
                     <div className="d-flex align-items-center gap-2">
@@ -935,91 +967,50 @@ export default function App() {
                         GEO-LOCATION & INTERACTIVE RADAR TRACE
                       </h6>
                     </div>
-                    <div className="d-flex align-items-center gap-2 flex-wrap">
-                      {/* Map Engine Toggle */}
-                      <div className="btn-group btn-group-sm font-monospace" role="group" aria-label="Map Engine">
-                        <button
-                          type="button"
-                          className={`btn ${mapEngine === 'google' ? 'btn-success text-black fw-bold' : 'btn-dark text-success border-secondary'}`}
-                          onClick={() => setMapEngine('google')}
-                          title="Google Maps Platform Engine"
-                        >
-                          <i className="fa-brands fa-google me-1"></i>
-                          Google Maps
-                        </button>
-                        <button
-                          type="button"
-                          className={`btn ${mapEngine === 'cyber' ? 'btn-success text-black fw-bold' : 'btn-dark text-secondary border-secondary'}`}
-                          onClick={() => setMapEngine('cyber')}
-                          title="Dark Cyber Grid Map"
-                        >
-                          <i className="fa-solid fa-satellite-dish me-1"></i>
-                          Cyber Grid
-                        </button>
-                      </div>
-
-                      {/* Display Mode Toggle */}
-                      <div className="btn-group btn-group-sm font-monospace" role="group" aria-label="Display Mode">
-                        <button
-                          type="button"
-                          className={`btn ${mapDisplayMode === 'map' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
-                          onClick={() => setMapDisplayMode('map')}
-                        >
-                          <i className="fa-solid fa-map-location-dot me-1"></i>
-                          Map
-                        </button>
-                        <button
-                          type="button"
-                          className={`btn ${mapDisplayMode === 'split' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
-                          onClick={() => setMapDisplayMode('split')}
-                        >
-                          <i className="fa-solid fa-table-columns me-1"></i>
-                          Split
-                        </button>
-                        <button
-                          type="button"
-                          className={`btn ${mapDisplayMode === 'data' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
-                          onClick={() => setMapDisplayMode('data')}
-                        >
-                          <i className="fa-solid fa-list-check me-1"></i>
-                          Data
-                        </button>
-                      </div>
+                    <div className="btn-group btn-group-sm font-monospace" role="group" aria-label="Display Mode">
+                      <button
+                        type="button"
+                        className={`btn ${mapDisplayMode === 'map' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
+                        onClick={() => setMapDisplayMode('map')}
+                      >
+                        <i className="fa-solid fa-map-location-dot me-1"></i>
+                        Map
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn ${mapDisplayMode === 'split' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
+                        onClick={() => setMapDisplayMode('split')}
+                      >
+                        <i className="fa-solid fa-table-columns me-1"></i>
+                        Split
+                      </button>
+                      <button
+                        type="button"
+                        className={`btn ${mapDisplayMode === 'data' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
+                        onClick={() => setMapDisplayMode('data')}
+                      >
+                        <i className="fa-solid fa-list-check me-1"></i>
+                        Data
+                      </button>
                     </div>
                   </div>
 
-                  {/* Map Viewport Render: Google Maps Platform or Dark Cyber Grid */}
+                  {/* Map Viewport Render: Google Maps Platform */}
                   {mapDisplayMode !== 'data' && (
                     <div className="mb-3">
-                      {mapEngine === 'google' ? (
-                        <GoogleCyberMap
-                          latitude={ipGeoData && !ipGeoData.error ? ipGeoData.latitude : (operatorGeo?.latitude || 20)}
-                          longitude={ipGeoData && !ipGeoData.error ? ipGeoData.longitude : (operatorGeo?.longitude || 0)}
-                          ip={ipGeoData?.ip || targetIP || operatorGeo?.ip || "127.0.0.1"}
-                          target={targetIP || "Global Cyber Grid"}
-                          city={ipGeoData?.city || operatorGeo?.city || (ipGeoData?.error ? 'Unknown Host' : 'Cyberspace Node')}
-                          region={ipGeoData?.region || operatorGeo?.region}
-                          country={ipGeoData?.country || operatorGeo?.country || 'Global'}
-                          countryCode={ipGeoData?.country_code || operatorGeo?.country_code || 'XX'}
-                          isp={ipGeoData?.connection?.isp || operatorGeo?.connection?.isp || 'Network Provider'}
-                          asn={ipGeoData?.connection?.asn || operatorGeo?.connection?.asn}
-                          title={ipGeoData?.ip ? `RADAR LOCK: ${ipGeoData.ip}` : (operatorGeo?.ip ? `OPERATOR NODE: ${operatorGeo.ip}` : 'GOOGLE MAPS GEOSPATIAL RADAR // ONLINE')}
-                        />
-                      ) : (
-                        <InteractiveDarkCyberMap
-                          latitude={ipGeoData && !ipGeoData.error ? ipGeoData.latitude : (operatorGeo?.latitude || 20)}
-                          longitude={ipGeoData && !ipGeoData.error ? ipGeoData.longitude : (operatorGeo?.longitude || 0)}
-                          ip={ipGeoData?.ip || targetIP || operatorGeo?.ip || "127.0.0.1"}
-                          target={targetIP || "Global Cyber Grid"}
-                          city={ipGeoData?.city || operatorGeo?.city || (ipGeoData?.error ? 'Unknown Host' : 'Cyberspace Node')}
-                          region={ipGeoData?.region || operatorGeo?.region}
-                          country={ipGeoData?.country || operatorGeo?.country || 'Global'}
-                          countryCode={ipGeoData?.country_code || operatorGeo?.country_code || 'XX'}
-                          isp={ipGeoData?.connection?.isp || operatorGeo?.connection?.isp || 'Network Provider'}
-                          asn={ipGeoData?.connection?.asn || operatorGeo?.connection?.asn}
-                          title={ipGeoData?.ip ? `RADAR LOCK: ${ipGeoData.ip}` : (operatorGeo?.ip ? `OPERATOR NODE: ${operatorGeo.ip}` : 'GLOBAL CYBER RADAR // ONLINE')}
-                        />
-                      )}
+                      <GoogleCyberMap
+                        latitude={ipGeoData && !ipGeoData.error ? ipGeoData.latitude : (operatorGeo?.latitude || 20)}
+                        longitude={ipGeoData && !ipGeoData.error ? ipGeoData.longitude : (operatorGeo?.longitude || 0)}
+                        ip={ipGeoData?.ip || targetIP || operatorGeo?.ip || "127.0.0.1"}
+                        target={targetIP || "Global Cyber Grid"}
+                        city={ipGeoData?.city || operatorGeo?.city || (ipGeoData?.error ? 'Unknown Host' : 'Cyberspace Node')}
+                        region={ipGeoData?.region || operatorGeo?.region}
+                        country={ipGeoData?.country || operatorGeo?.country || 'Global'}
+                        countryCode={ipGeoData?.country_code || operatorGeo?.country_code || 'XX'}
+                        isp={ipGeoData?.connection?.isp || operatorGeo?.connection?.isp || 'Network Provider'}
+                        asn={ipGeoData?.connection?.asn || operatorGeo?.connection?.asn}
+                        title={ipGeoData?.ip ? `RADAR LOCK: ${ipGeoData.ip}` : (operatorGeo?.ip ? `OPERATOR NODE: ${operatorGeo.ip}` : 'GOOGLE MAPS GEOSPATIAL RADAR // ONLINE')}
+                      />
                     </div>
                   )}
 
@@ -1573,6 +1564,21 @@ sqlmap -u "http://target.com/page.php?id=1" --os-shell`}
                     </pre>
                     <CopyButton text={`# Basic SQL injection scan\nsqlmap -u "http://target.com/page.php?id=1"\n\n# Dump database tables\nsqlmap -u "http://target.com/page.php?id=1" --tables\n\n# Get interactive OS shell\nsqlmap -u "http://target.com/page.php?id=1" --os-shell`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
+
+                  {/* Read More button at bottom of code */}
+                  <div className="mt-3 pt-2 border-top border-warning border-opacity-25 d-flex justify-content-between align-items-center">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-warning font-monospace py-1 px-3 d-flex align-items-center gap-2"
+                      onClick={() => openToolDetailPage('sqlmap')}
+                    >
+                      <i className="fa-solid fa-book-open"></i>
+                      <span>Read More</span>
+                    </button>
+                    <span className="text-secondary small font-monospace">
+                      <i className="fa-solid fa-database text-warning me-1"></i>SQLi Engine
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1595,6 +1601,21 @@ scapy
                     </pre>
                     <CopyButton text={`# Start interactive shell\nscapy\n\n# Send crafted ICMP ping\n>>> send(IP(dst="192.168.1.1")/ICMP())\n\n# Sniff 10 packets on eth0\n>>> sniff(iface="eth0", count=10)`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
+
+                  {/* Read More button at bottom of code */}
+                  <div className="mt-3 pt-2 border-top border-info border-opacity-25 d-flex justify-content-between align-items-center">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-info font-monospace py-1 px-3 d-flex align-items-center gap-2"
+                      onClick={() => openToolDetailPage('scapy')}
+                    >
+                      <i className="fa-solid fa-book-open"></i>
+                      <span>Read More</span>
+                    </button>
+                    <span className="text-secondary small font-monospace">
+                      <i className="fa-solid fa-network-wired text-info me-1"></i>Packet Forger
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1613,6 +1634,21 @@ psexec.py administrator@192.168.1.10 -hashes aad3b435b51404eeaad3b435b51404ee:20
 secretsdump.py domain.local/admin:password@192.168.1.10`}
                     </pre>
                     <CopyButton text={`# Pass the Hash execution\npsexec.py administrator@192.168.1.10 -hashes aad3b435b51404eeaad3b435b51404ee:209c6174da490caeb422f3fa5a7ae634\n\n# Extract domain credentials\nsecretsdump.py domain.local/admin:password@192.168.1.10`} copiedText={copiedText} onCopy={handleCopy} />
+                  </div>
+
+                  {/* Read More button at bottom of code */}
+                  <div className="mt-3 pt-2 border-top border-danger border-opacity-25 d-flex justify-content-between align-items-center">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger font-monospace py-1 px-3 d-flex align-items-center gap-2"
+                      onClick={() => openToolDetailPage('impacket')}
+                    >
+                      <i className="fa-solid fa-book-open"></i>
+                      <span>Read More</span>
+                    </button>
+                    <span className="text-secondary small font-monospace">
+                      <i className="fa-solid fa-fingerprint text-danger me-1"></i>AD & SMB Suite
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1636,6 +1672,21 @@ python3 dirsearch.py -u "http://target.com" -w /path/to/wordlist.txt`}
                     </pre>
                     <CopyButton text={`# Basic directory scan\npython3 dirsearch.py -u "http://target.com"\n\n# Scan with extensions\npython3 dirsearch.py -u "http://target.com" -e php,html,txt\n\n# Use custom wordlist\npython3 dirsearch.py -u "http://target.com" -w /path/to/wordlist.txt`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
+
+                  {/* Read More button at bottom of code */}
+                  <div className="mt-3 pt-2 border-top border-success border-opacity-25 d-flex justify-content-between align-items-center">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-success font-monospace py-1 px-3 d-flex align-items-center gap-2"
+                      onClick={() => openToolDetailPage('dirsearch')}
+                    >
+                      <i className="fa-solid fa-book-open"></i>
+                      <span>Read More</span>
+                    </button>
+                    <span className="text-secondary small font-monospace">
+                      <i className="fa-solid fa-folder-tree text-success me-1"></i>Path Bruter
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1658,6 +1709,21 @@ wfuzz -c -z file,payloads.txt -d "user=admin&pass=FUZZ" http://target.com/login.
                     </pre>
                     <CopyButton text={`# Fuzz URL directory\nwfuzz -c -z file,wordlist.txt --hc 404 http://target.com/FUZZ\n\n# Fuzz GET parameters\nwfuzz -c -z file,params.txt http://target.com/index.php?FUZZ=1\n\n# Fuzz POST data\nwfuzz -c -z file,payloads.txt -d "user=admin&pass=FUZZ" http://target.com/login.php`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
+
+                  {/* Read More button at bottom of code */}
+                  <div className="mt-3 pt-2 border-top border-primary border-opacity-25 d-flex justify-content-between align-items-center">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-primary font-monospace py-1 px-3 d-flex align-items-center gap-2"
+                      onClick={() => openToolDetailPage('wfuzz')}
+                    >
+                      <i className="fa-solid fa-book-open"></i>
+                      <span>Read More</span>
+                    </button>
+                    <span className="text-secondary small font-monospace">
+                      <i className="fa-solid fa-vial text-primary me-1"></i>HTTP Fuzzer
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -1677,11 +1743,44 @@ python3 Responder.py -I eth0 -A`}
                     </pre>
                     <CopyButton text={`# Start listening on eth0\npython3 Responder.py -I eth0\n\n# Run in analyze mode (no poisoning)\npython3 Responder.py -I eth0 -A`} copiedText={copiedText} onCopy={handleCopy} />
                   </div>
+
+                  {/* Read More button at bottom of code */}
+                  <div className="mt-3 pt-2 border-top border-light border-opacity-25 d-flex justify-content-between align-items-center">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-light font-monospace py-1 px-3 d-flex align-items-center gap-2"
+                      onClick={() => openToolDetailPage('responder')}
+                    >
+                      <i className="fa-solid fa-book-open"></i>
+                      <span>Read More</span>
+                    </button>
+                    <span className="text-secondary small font-monospace">
+                      <i className="fa-solid fa-satellite text-light me-1"></i>LLMNR Poisoner
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </section>
+      )}
+
+      {currentView === 'toolDetail' && (
+        <ToolDetailSection
+          toolKey={selectedToolKey}
+          onSelectTool={(key) => {
+            setSelectedToolKey(key);
+            window.location.hash = `tool-${key}`;
+            window.scrollTo(0, 0);
+          }}
+          onBack={() => {
+            setCurrentView('ethicalHacking');
+            window.location.hash = 'ethicalHacking';
+            window.scrollTo(0, 0);
+          }}
+          copiedText={copiedText}
+          onCopy={handleCopy}
+        />
       )}
         </motion.div>
       </AnimatePresence>
