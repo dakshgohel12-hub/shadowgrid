@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import MatrixRain from './components/MatrixRain';
-import { GoogleCyberMap } from './components/GoogleCyberMap';
 import { ToolDetailSection, ToolKey } from './components/ToolDetailSection';
 
 
@@ -463,8 +462,6 @@ export default function App() {
   const [newName, setNewName] = useState('');
   const [operatorGeo, setOperatorGeo] = useState<any>(null);
   const [isLoadingOperator, setIsLoadingOperator] = useState(false);
-  const [showOperatorMap, setShowOperatorMap] = useState(false);
-  const [mapDisplayMode, setMapDisplayMode] = useState<'map' | 'split' | 'data'>('map');
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
 
   const openToolDetailPage = (toolKey: ToolKey) => {
@@ -712,7 +709,7 @@ export default function App() {
       { pct: 40, text: <><span className="text-warning">[+] Resolving DNS nodes & geospatial grid coordinates...</span></> },
       { pct: 60, text: <><span className="text-light">[+] Traversing ISP routing hops & BGP autonomous tables...</span><br/><span className="text-success">[+] IP geolocation packet payload secured.</span></> },
       { pct: 80, text: <>{portLogs}</> },
-      { pct: 100, text: <><span className={`text-${threatBadgeClass} fw-bold`}>[!] FINAL ASSESSMENT: THREAT LEVEL {threatLevel.toUpperCase()}</span><br/><span className="text-info">&gt; Interactive Dark Cyber Map & Threat Trace Complete!</span></> }
+      { pct: 100, text: <><span className={`text-${threatBadgeClass} fw-bold`}>[!] FINAL ASSESSMENT: THREAT LEVEL {threatLevel.toUpperCase()}</span><br/><span className="text-info">&gt; IP Geolocation & Threat Telemetry Data Resolved!</span></> }
     ];
 
     let stepIndex = 0;
@@ -869,7 +866,7 @@ export default function App() {
                           }
                         }}
                         disabled={isScanning || isLoadingOperator}
-                        title="Trace your public IP on the interactive map"
+                        title="Trace your public IP geolocation and threat telemetry"
                       >
                         <i className="fa-solid fa-crosshairs me-1"></i>
                         Trace My Location
@@ -958,128 +955,100 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Always-Visible Interactive Map (Google Maps Platform) */}
+                {/* Geolocation & Threat Telemetry Data Box (Data Only Mode) */}
                 <div id="locationCard" className="location-box">
                   <div className="d-flex justify-content-between align-items-center border-bottom border-info pb-2 mb-3 flex-wrap gap-2">
                     <div className="d-flex align-items-center gap-2">
                       <h6 className="text-info mb-0 font-monospace">
-                        <i className="fa-solid fa-location-crosshairs me-2"></i>
-                        GEO-LOCATION & INTERACTIVE RADAR TRACE
+                        <i className="fa-solid fa-server me-2"></i>
+                        TARGET GEOLOCATION & THREAT TELEMETRY DATA
                       </h6>
                     </div>
-                    <div className="btn-group btn-group-sm font-monospace" role="group" aria-label="Display Mode">
-                      <button
-                        type="button"
-                        className={`btn ${mapDisplayMode === 'map' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
-                        onClick={() => setMapDisplayMode('map')}
-                      >
-                        <i className="fa-solid fa-map-location-dot me-1"></i>
-                        Map
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn ${mapDisplayMode === 'split' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
-                        onClick={() => setMapDisplayMode('split')}
-                      >
-                        <i className="fa-solid fa-table-columns me-1"></i>
-                        Split
-                      </button>
-                      <button
-                        type="button"
-                        className={`btn ${mapDisplayMode === 'data' ? 'btn-info text-black fw-bold' : 'btn-dark text-info border-secondary'}`}
-                        onClick={() => setMapDisplayMode('data')}
-                      >
-                        <i className="fa-solid fa-list-check me-1"></i>
-                        Data
-                      </button>
-                    </div>
+                    <span className="badge bg-dark border border-info text-info font-monospace py-1 px-2">
+                      <i className="fa-solid fa-database text-info me-1"></i>
+                      DATA ONLY TELEMETRY
+                    </span>
                   </div>
 
-                  {/* Map Viewport Render: Google Maps Platform */}
-                  {mapDisplayMode !== 'data' && (
-                    <div className="mb-3">
-                      <GoogleCyberMap
-                        latitude={ipGeoData && !ipGeoData.error ? ipGeoData.latitude : (operatorGeo?.latitude || 20)}
-                        longitude={ipGeoData && !ipGeoData.error ? ipGeoData.longitude : (operatorGeo?.longitude || 0)}
-                        ip={ipGeoData?.ip || targetIP || operatorGeo?.ip || "127.0.0.1"}
-                        target={targetIP || "Global Cyber Grid"}
-                        city={ipGeoData?.city || operatorGeo?.city || (ipGeoData?.error ? 'Unknown Host' : 'Cyberspace Node')}
-                        region={ipGeoData?.region || operatorGeo?.region}
-                        country={ipGeoData?.country || operatorGeo?.country || 'Global'}
-                        countryCode={ipGeoData?.country_code || operatorGeo?.country_code || 'XX'}
-                        isp={ipGeoData?.connection?.isp || operatorGeo?.connection?.isp || 'Network Provider'}
-                        asn={ipGeoData?.connection?.asn || operatorGeo?.connection?.asn}
-                        title={ipGeoData?.ip ? `RADAR LOCK: ${ipGeoData.ip}` : (operatorGeo?.ip ? `OPERATOR NODE: ${operatorGeo.ip}` : 'GOOGLE MAPS GEOSPATIAL RADAR // ONLINE')}
-                      />
+                  <h6 className="text-info border-bottom border-info pb-1 mb-2 font-monospace">
+                    <i className="fa-solid fa-network-wired me-2"></i>TARGET METADATA & TELEMETRY
+                  </h6>
+                  {ipGeoData && !ipGeoData.error ? (
+                    <div className="row text-start small mb-3 g-2 font-monospace">
+                      <div className="col-12 col-md-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{ipGeoData.ip}</span></div>
+                      <div className="col-12 col-md-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-white">{ipGeoData.city ? `${ipGeoData.city}, ` : ''}{ipGeoData.region}, {ipGeoData.country} ({ipGeoData.country_code})</span></div>
+                      <div className="col-12 col-md-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-white">{ipGeoData.connection?.isp || 'Unknown'}</span></div>
+                      <div className="col-12 col-md-6 mb-1">
+                        <strong>Coordinates:</strong>{' '}
+                        <span id="locCoords" className="text-warning">
+                          {Math.abs(ipGeoData.latitude).toFixed(4)}° {ipGeoData.latitude >= 0 ? 'N' : 'S'},{' '}
+                          {Math.abs(ipGeoData.longitude).toFixed(4)}° {ipGeoData.longitude >= 0 ? 'E' : 'W'}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="row text-start small mb-3 g-2 font-monospace">
+                      <div className="col-12 mb-1"><strong>Status:</strong> <span className="text-danger">{ipGeoData?.message || "Local Network / Private IP (Geolocation Unavailable)"}</span></div>
+                      <div className="col-12 col-md-6 mb-1"><strong>Target IP:</strong> <span id="locIPFallback" className="text-white">{ipGeoData?.ip || targetIP || operatorGeo?.ip || "127.0.0.1"}</span></div>
+                      <div className="col-12 col-md-6 mb-1"><strong>Location:</strong> <span id="locGeoFallback" className="text-white">{operatorGeo?.city ? `${operatorGeo.city}, ${operatorGeo.region ? `${operatorGeo.region}, ` : ''}${operatorGeo.country || operatorGeo.country_code}` : 'Unknown Host / Cyberspace'}</span></div>
+                      <div className="col-12 col-md-6 mb-1"><strong>ISP / Network:</strong> <span id="locISPFallback" className="text-white">{operatorGeo?.connection?.isp || 'Unknown Network'}</span></div>
+                      <div className="col-12 col-md-6 mb-1">
+                        <strong>Coordinates:</strong>{' '}
+                        <span id="locCoordsFallback" className="text-warning">
+                          {operatorGeo?.latitude ? `${Math.abs(operatorGeo.latitude).toFixed(4)}° ${operatorGeo.latitude >= 0 ? 'N' : 'S'}, ${Math.abs(operatorGeo.longitude).toFixed(4)}° ${operatorGeo.longitude >= 0 ? 'E' : 'W'}` : '0.0000° N, 0.0000° E'}
+                        </span>
+                      </div>
                     </div>
                   )}
 
-                          {/* Detailed Data Views */}
-                          {(mapDisplayMode === 'split' || mapDisplayMode === 'data') && (
-                            <>
-                              <h6 className="text-info border-bottom border-info pb-1 mb-2">
-                                <i className="fa-solid fa-server me-2"></i>TARGET METADATA & TELEMETRY
-                              </h6>
-                              {ipGeoData && !ipGeoData.error ? (
-                                <div className="row text-start small mb-3 g-2">
-                                  <div className="col-12 col-md-6 mb-1"><strong>Target IP:</strong> <span id="locIP" className="text-white">{ipGeoData.ip}</span></div>
-                                  <div className="col-12 col-md-6 mb-1"><strong>Location:</strong> <span id="locGeo" className="text-white">{ipGeoData.city ? `${ipGeoData.city}, ` : ''}{ipGeoData.region}, {ipGeoData.country} ({ipGeoData.country_code})</span></div>
-                                  <div className="col-12 col-md-6 mb-1"><strong>ISP / Network:</strong> <span id="locISP" className="text-white">{ipGeoData.connection?.isp || 'Unknown'}</span></div>
-                                  <div className="col-12 col-md-6 mb-1">
-                                    <strong>Coordinates:</strong>{' '}
-                                    <span id="locCoords" className="text-warning">
-                                      {Math.abs(ipGeoData.latitude).toFixed(4)}° {ipGeoData.latitude >= 0 ? 'N' : 'S'},{' '}
-                                      {Math.abs(ipGeoData.longitude).toFixed(4)}° {ipGeoData.longitude >= 0 ? 'E' : 'W'}
-                                    </span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="row text-start small mb-3 g-2">
-                                  <div className="col-12 mb-1"><strong>Status:</strong> <span className="text-danger">{ipGeoData?.message || "Local Network / Private IP (Geolocation Unavailable)"}</span></div>
-                                  <div className="col-12 col-md-6 mb-1"><strong>Target IP:</strong> <span id="locIPFallback" className="text-white">{ipGeoData?.ip || targetIP}</span></div>
-                                  <div className="col-12 col-md-6 mb-1"><strong>Location:</strong> <span id="locGeoFallback" className="text-muted">N/A</span></div>
-                                  <div className="col-12 col-md-6 mb-1"><strong>ISP / Network:</strong> <span id="locISPFallback" className="text-muted">Unknown</span></div>
-                                  <div className="col-12 col-md-6 mb-1"><strong>Coordinates:</strong> <span id="locCoordsFallback" className="text-muted">N/A</span></div>
-                                </div>
-                              )}
-                              <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-building-shield me-2"></i>ASN & OWNERSHIP LOOKUP</h6>
-                              {ipGeoData && !ipGeoData.error ? (
-                                <div className="row text-start small mb-3 g-2">
-                                  <div className="col-12 col-md-6 mb-1">
-                                    <strong>ASN:</strong>{' '}
-                                    <span className="text-white">
-                                      {ipGeoData.connection?.asn && ipGeoData.connection.asn !== 'Unknown'
-                                        ? `AS${ipGeoData.connection.asn}`
-                                        : 'Unknown'}
-                                    </span>
-                                  </div>
-                                  <div className="col-12 col-md-6 mb-1"><strong>Organization:</strong> <span className="text-white">{ipGeoData.connection?.org || 'Unknown'}</span></div>
-                                  <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-warning">abuse@{ipGeoData.connection?.domain || 'unknown.net'}</span></div>
-                                </div>
-                              ) : (
-                                <div className="row text-start small mb-3 g-2">
-                                  <div className="col-12 col-md-6 mb-1"><strong>ASN:</strong> <span className="text-muted">N/A</span></div>
-                                  <div className="col-12 col-md-6 mb-1"><strong>Organization:</strong> <span className="text-muted">N/A</span></div>
-                                  <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-muted">N/A</span></div>
-                                </div>
-                              )}
-                            </>
-                          )}
-                          
-                          <h6 className="text-info border-bottom border-info pb-1 mb-2"><i className="fa-solid fa-shield-virus me-2"></i>THREAT REPUTATION & BLACKLIST</h6>
-                          <div className="row text-start small align-items-center g-2">
-                            <div className="col-12 col-md-7 mb-3 mb-md-0">
-                              <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Tor Exit Node:</strong> <span className="text-white">False</span></div>
-                              <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Known Botnet:</strong> <span className="text-white">Clean</span></div>
-                              <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Spam Database:</strong> <span className="text-white">Clear</span></div>
-                            </div>
-                            <div className="col-12 col-md-5 text-md-end text-start">
-                              <div className="d-inline-block border border-success rounded p-2 text-success fw-bold" style={{ backgroundColor: 'rgba(0, 255, 102, 0.1)', boxShadow: 'inset 0 0 10px rgba(0,255,102,0.2)' }}>
-                                <i className="fa-solid fa-shield-halved me-1"></i> REPUTATION: SAFE
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                  <h6 className="text-info border-bottom border-info pb-1 mb-2 font-monospace">
+                    <i className="fa-solid fa-building-shield me-2"></i>ASN & OWNERSHIP LOOKUP
+                  </h6>
+                  {ipGeoData && !ipGeoData.error ? (
+                    <div className="row text-start small mb-3 g-2 font-monospace">
+                      <div className="col-12 col-md-6 mb-1">
+                        <strong>ASN:</strong>{' '}
+                        <span className="text-white">
+                          {ipGeoData.connection?.asn && ipGeoData.connection.asn !== 'Unknown'
+                            ? `AS${ipGeoData.connection.asn}`
+                            : 'Unknown'}
+                        </span>
+                      </div>
+                      <div className="col-12 col-md-6 mb-1"><strong>Organization:</strong> <span className="text-white">{ipGeoData.connection?.org || 'Unknown'}</span></div>
+                      <div className="col-12 mb-1"><strong>Abuse Contact:</strong> <span className="text-warning">abuse@{ipGeoData.connection?.domain || 'unknown.net'}</span></div>
+                    </div>
+                  ) : (
+                    <div className="row text-start small mb-3 g-2 font-monospace">
+                      <div className="col-12 col-md-6 mb-1">
+                        <strong>ASN:</strong>{' '}
+                        <span className="text-white">{operatorGeo?.connection?.asn ? `AS${operatorGeo.connection.asn}` : 'N/A'}</span>
+                      </div>
+                      <div className="col-12 col-md-6 mb-1">
+                        <strong>Organization:</strong>{' '}
+                        <span className="text-white">{operatorGeo?.connection?.org || 'N/A'}</span>
+                      </div>
+                      <div className="col-12 mb-1">
+                        <strong>Abuse Contact:</strong> <span className="text-warning">abuse@{operatorGeo?.connection?.domain || 'threat-intel.corp'}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <h6 className="text-info border-bottom border-info pb-1 mb-2 font-monospace">
+                    <i className="fa-solid fa-shield-virus me-2"></i>THREAT REPUTATION & BLACKLIST
+                  </h6>
+                  <div className="row text-start small align-items-center g-2 font-monospace">
+                    <div className="col-12 col-md-7 mb-3 mb-md-0">
+                      <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Tor Exit Node:</strong> <span className="text-white">False</span></div>
+                      <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Known Botnet:</strong> <span className="text-white">Clean</span></div>
+                      <div className="mb-1"><i className="fa-solid fa-check text-success me-2"></i><strong>Spam Database:</strong> <span className="text-white">Clear</span></div>
+                    </div>
+                    <div className="col-12 col-md-5 text-md-end text-start">
+                      <div className="d-inline-block border border-success rounded p-2 text-success fw-bold" style={{ backgroundColor: 'rgba(0, 255, 102, 0.1)', boxShadow: 'inset 0 0 10px rgba(0,255,102,0.2)' }}>
+                        <i className="fa-solid fa-shield-halved me-1"></i> REPUTATION: SAFE
+                      </div>
+                    </div>
+                  </div>
+                </div>
                       </div>
                     </div>
                   </div>
